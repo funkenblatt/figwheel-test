@@ -14,6 +14,11 @@
   (.arc ctx cx cy r 0 (* 2 js/Math.PI))
   (.stroke ctx))
 
+(defn stroke-arc [ctx [cx cy] r th1 th2]
+  (.beginPath ctx)
+  (.arc ctx cx cy r th1 th2)
+  (.stroke ctx))
+
 (defn clear [ctx]
   (let [can (.-canvas ctx)]
     (.clearRect ctx 0 0 (.-width can) (.-height can))))
