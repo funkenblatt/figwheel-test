@@ -15,11 +15,6 @@
 (def l1 [[0 0] [100 100]])
 (def l2 [[40 23] [50 -10]])
 
-(defn trimwad [[p1 p2 :as seg1] [p3 p4 :as seg2]]
-  (let [s (first (g/find-intersections seg1 seg2))
-        meet-point (g/v+ p1 (g/vscale s (g/v- p2 p1)))]
-    [p1 meet-point p4]))
-
 (defn stroke-poly [ctx polyline]
   (apply c/stroke-lines ctx polyline))
 
