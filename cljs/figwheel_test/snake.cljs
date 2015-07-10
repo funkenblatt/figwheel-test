@@ -321,7 +321,7 @@ as changed."
                      (js/window.requestAnimationFrame loopage))))
          (unset-keys))))))
 
-(defn init-everything []
+(defn ^:export init-everything []
   (let [body (js/document.querySelector "body")]
     (set! (.-innerHTML body) "")
     (.appendChild body (doto (hipo/create
@@ -334,8 +334,6 @@ all of the plans for Plastic Gear!  Don't touch any of the walls in the facility
 though, they're coated with a deadly neurotoxin!  Also, don't touch yourself either,
 we've heard that's bad for you.")
     (set-start! ctx)))
-
-(init-everything)
 
 (comment
   (update-head {:type ::arc

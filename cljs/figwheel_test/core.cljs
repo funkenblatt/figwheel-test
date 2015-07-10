@@ -79,25 +79,25 @@ ax < bx, ay > by.  Z represents the camera's height off the ground."
 
 (def state (atom [0 0]))
 
-(draw-scene @state)
-
-(set! (.-onmousedown canvas)
-      (fn [evt]
-        (let [startx (.-pageX evt)
-              starty (.-pageY evt)]
-          (set! (.-onmousemove js/window)
-                (fn [move]
-                  (let [x (.-pageX move)
-                        y (.-pageY move)]
+(defn setup []
+  (draw-scene @state)
+  (set! (.-onmousedown canvas)
+        (fn [evt]
+          (let [startx (.-pageX evt)
+                starty (.-pageY evt)]
+            (set! (.-onmousemove js/window)
+                  (fn [move]
+                    (let [x (.-pageX move)
+                          y (.-pageY move)]
+                      (.requestAnimationFrame
+                       js/window
+                       #(draw-scene
+                         (g/v+ @state [(- x startx) (- starty y)]))))))
+            (set! (.-onmouseup js/window)
+                  (fn [finish]
+                    (set! (.-onmousemove js/window) nil)
+                    (set! (.-onmouseup js/window) nil)
+                    (swap! state g/v+ [(- (.-pageX finish) startx)
+                                       (- starty (.-pageY finish))])
                     (.requestAnimationFrame
-                     js/window
-                     #(draw-scene
-                       (g/v+ @state [(- x startx) (- starty y)]))))))
-          (set! (.-onmouseup js/window)
-                (fn [finish]
-                  (set! (.-onmousemove js/window) nil)
-                  (set! (.-onmouseup js/window) nil)
-                  (swap! state g/v+ [(- (.-pageX finish) startx)
-                                     (- starty (.-pageY finish))])
-                  (.requestAnimationFrame
-                   js/window #(draw-scene @state)))))))
+                     js/window #(draw-scene @state))))))))
