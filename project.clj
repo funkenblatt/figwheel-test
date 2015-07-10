@@ -14,14 +14,15 @@
               [{:id "foo"
                 :source-paths ["cljs/"]
                 :figwheel true
-                :compiler {:main "figwheel-test.core"
+                :compiler {:main "figwheel-test.snake"
                            :asset-path "js"
                            :output-to "resources/public/stuff.js"
                            :output-dir "resources/public/js"}}
 
-               {:id "bar"
-                :optimizations :whitespace
+               {:id "production"
                 :source-paths ["cljs/"]
                 :figwheel true
-                :compiler {:main "figwheel-test.core"
-                           :output-to "target/all.js"}}]})
+                :compiler {:optimizations :advanced
+                           :main "figwheel-test.snake"
+                           :output-to "target/all.js"
+                           }}]})
