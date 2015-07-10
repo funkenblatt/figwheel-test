@@ -21,9 +21,6 @@
     (c/stroke-arc ctx c r th2 th1)
     (c/stroke-arc ctx c r th1 th2)))
 
-(defn draw-snake [ctx {:keys [segments]}]
-  (doseq [seg segments] (draw-segment ctx seg)))
-
 (defmulti update-seg
   "Update some part of a segment"
   (fn [segment velocity end] (:type segment)))
@@ -128,11 +125,10 @@ as changed."
         (c/clear ctx)
         (.translate ctx (/ w 2) (/ h 2))
         (.scale ctx scale-factor (- scale-factor))
-        (doseq [i (:walls game-state)]
-          (draw-segment ctx i))
-        (doseq [[name i] (:targets game-state)]
-          (draw-segment ctx i))
-        (draw-snake ctx game-state)))))
+        (run! (partial draw-segment ctx)
+              (concat (:walls game-state)
+                      (map val (:targets game-state))
+                      (:segments game-state)))))))
 
 (defn contains-angle? [{:keys [th1 th2 dir]} angle]
   (if (> (* dir (- th2 th1)) tau)
