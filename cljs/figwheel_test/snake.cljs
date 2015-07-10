@@ -122,14 +122,17 @@ as changed."
   (c/with-saved-context
     ctx
     (fn []
-      (c/clear ctx)
-      (.translate ctx 640 480)
-      (.scale ctx 1 -1)
-      (doseq [i (:walls game-state)]
-        (draw-segment ctx i))
-      (doseq [[name i] (:targets game-state)]
-        (draw-segment ctx i))
-      (draw-snake ctx game-state))))
+      (let [can (.-canvas ctx)
+            w (.-width can) h (.-height can)
+            scale-factor (/ w 1280)]
+        (c/clear ctx)
+        (.translate ctx (/ w 2) (/ h 2))
+        (.scale ctx scale-factor (- scale-factor))
+        (doseq [i (:walls game-state)]
+          (draw-segment ctx i))
+        (doseq [[name i] (:targets game-state)]
+          (draw-segment ctx i))
+        (draw-snake ctx game-state)))))
 
 (defn contains-angle? [{:keys [th1 th2 dir]} angle]
   (if (> (* dir (- th2 th1)) tau)
@@ -214,6 +217,9 @@ as changed."
     :p1 [0 0]
     :p2 [100 0]}])
 
+(defn poly->segments [p]
+  (map (fn [p1 p2] {:type ::line :p1 p1 :p2 p2}) p (rest p)))
+
 (defn init-snake
   "Set the game to its initial state."
   [game-state ctx]
@@ -227,7 +233,9 @@ as changed."
           :target-length 100
           :turn nil
           :targets {}
-          :walls (l/levels (:level game-state))
+          :walls (concat
+                  (poly->segments [[-642 482] [642 482] [642 -482] [-642 -482] [-642 482]])
+                  (l/levels (:level game-state)))
           :stop false)
    (range 10)))
 
@@ -235,8 +243,15 @@ as changed."
 
 (declare run-shit)
 
-(def button (hipo/create [:button "Pause"]))
-(def canvas (hipo/create [:canvas {:width 1280 :height 960 :style "border: 1px solid #000"}]))
+(def button (hipo/create [:button "Pause"])) 
+(def canvas (let [w (min 1280
+                         (quot (* (- js/window.innerWidth 20) 3) 4)
+                         (quot (* (- js/window.innerHeight 10) 4) 3))
+                  h (quot (* w 3) 4)]
+              
+              (hipo/create [:canvas {:width w :height h
+                                     :style "border: 1px solid #000; display: block;"}])))
+
 (def print-area (hipo/create [:div]))
 (def ctx (.getContext canvas "2d"))
 
@@ -260,7 +275,7 @@ as changed."
   (set! (.-textContent button) "Start")
   (set! (.-onclick button)
         (fn []
-          (fooprint "")
+          (fooprint "Press A and D to turn left and right.")
           (swap! my-snake init-snake ctx)
           (run-shit ctx)
           (set-pause! ctx))))
@@ -285,13 +300,14 @@ as changed."
                                 (check-targets
                                  (move-snake state 3 (:target-length state)))))]
            (cond (check-walls updated)
-                 (do (fooprint "You Have Died")
+                 (do (fooprint "Snake?  Snake?! SNAAAAAAAAKE!!")
                      (reset! death-state @my-snake)
                      (set-start! ctx)
                      (unset-keys))
 
                  (empty? (:targets updated))
-                 (do (fooprint "You Have Won!")
+                 (do (fooprint "You did it, Snake!  Unfortunately there's another facility 
+                                we need you to infiltrate.")
                      (swap! my-snake (fn [state]
                                        (assoc
                                         state :level
@@ -309,10 +325,14 @@ as changed."
   (let [body (js/document.querySelector "body")]
     (set! (.-innerHTML body) "")
     (.appendChild body (doto (hipo/create
-                              [:div {:style "float: right; text-align: right"}])
+                              [:div {:style "float: right; text-align: right; width: 25%"}])
                          (.appendChild button)
                          (.appendChild print-area)))
     (.appendChild body canvas)
+    (fooprint "Snake!  We need you to infiltrate this 2D facility and retrieve
+all of the plans for Plastic Gear!  Don't touch any of the walls in the facility
+though, they're coated with a deadly neurotoxin!  Also, don't touch yourself either,
+we've heard that's bad for you.")
     (set-start! ctx)))
 
 (init-everything)
