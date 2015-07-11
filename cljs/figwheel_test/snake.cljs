@@ -276,14 +276,16 @@ as changed."
           (run-shit ctx)
           (set-pause! ctx))))
 
+(def turn-map {65 :left 37 :left 68 :right 39 :right})
+
 (defn run-shit [ctx]
   (set! js/window.onkeydown
                 (fn [evt]
-                  (if-let [turn ({65 :left 68 :right} (.-which evt))]
+                  (if-let [turn (turn-map (.-which evt))]
                     (swap! my-snake turn-snake turn))))
   (set! js/window.onkeyup
         (fn [evt]
-          (if-let [turn ({65 :left 68 :right} (.-which evt))]
+          (if-let [turn (turn-map (.-which evt))]
             (if (= turn (:turn @my-snake))
               (swap! my-snake turn-snake nil)))))
   
