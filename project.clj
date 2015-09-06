@@ -12,7 +12,7 @@
 
   :cljsbuild {:builds
               [{:id "foo"
-                :source-paths ["cljs/"]
+                :source-paths ["cljs/" "src/"]
                 :figwheel true
                 :compiler {:main "figwheel-test.snake"
                            :asset-path "js"

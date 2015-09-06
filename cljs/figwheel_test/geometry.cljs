@@ -7,6 +7,9 @@
 (defn vdot [[ax ay] [bx by]]
   (+ (* ax bx) (* ay by)))
 
+(defn vcross [[ax ay] [bx by]]
+  (- (* ax by) (* bx ay)))
+
 (defn vsquare [v] (vdot v v))
 
 (defn vmag [[x y]] (.sqrt js/Math (+ (* x x) (* y y))))
