@@ -1,5 +1,6 @@
 (ns figwheel-test.common
-  (:require [hipo.core :as hipo]))
+  (:require [hipo.core :as hipo]
+            clojure.string))
 
 (def tau (* 2 js/Math.PI))
 (def button (hipo/create [:button "Pause"])) 

@@ -25,4 +25,11 @@
                 :compiler {:optimizations :advanced
                            :main "figwheel-test.snake"
                            :output-to "target/all.js"
+                           }}
+
+               {:id "turret"
+                :source-paths ["cljs/" "src/"]
+                :compiler {:optimizations :advanced
+                           :main "figwheel-test.turret"
+                           :output-to "target/turret.js"
                            }}]})
