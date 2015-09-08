@@ -202,7 +202,8 @@
 (defn bullet-update [state name {:keys [x v] :as self}]
   (if-let [[enemy-id t] (check-bullet-hits self (:enemies state))]
     (-> state
-        (update-in [:enemies enemy-id :v] g/v+ (g/vscale 0.25 v))
+        (update-in [:enemies enemy-id :v]
+                   (fn [v2] (g/vscale (/ 1 1.25) (g/v+ v2 (g/vscale 0.25 v)))))
         (update-in [:enemies enemy-id :health] dec)
         (update :bullets dissoc name)
         (splatter x 4 4 8))
@@ -352,8 +353,8 @@ segment going from p1 to p2.  Returns nil if no impact."
       (update state :enemy-spawn dec))
     state))
 
-(defn update-state [all-state]
-  (let [new-state (-> all-state
+(defn update-state [state]
+  (let [new-state (-> state
                       (turret-update [:player] @dir @trigger)
                       (update-all :bullets bullet-update)
                       (update-all :enemies enemy-update)
@@ -398,7 +399,8 @@ segment going from p1 to p2.  Returns nil if no impact."
   (set! (.-onclick button)
         (fn []
           (if (alive? @state)
-            (do (reset! stop true)
+            (do (set! (.-textContent button) "Resume")
+                (reset! stop true)
                 (set! js/window.onmousemove nil)
                 (set! (.-onclick button) run-loop))
             (do (reset! state (init-state))
@@ -413,7 +415,7 @@ segment going from p1 to p2.  Returns nil if no impact."
             (swap! state update-state)
             (js/window.requestAnimationFrame lp))))
 
-(defn init-everything []
+(defn ^:export init-everything []
   (init-elements)
   (set! (.-textContent button) "Start")
   (set! (.-onclick button) run-loop))
