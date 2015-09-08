@@ -21,7 +21,6 @@
 
                {:id "production"
                 :source-paths ["cljs/"]
-                :figwheel true
                 :compiler {:optimizations :advanced
                            :main "figwheel-test.snake"
                            :output-to "target/all.js"
