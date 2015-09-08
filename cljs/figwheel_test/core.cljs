@@ -3,14 +3,10 @@
             [figwheel-test.geometry :as g]
             [figwheel-test.canvas :as c]))
 
-(set! (.-innerHTML (js/document.querySelector "body")) "")
-
 (def canvas (hipo/create [:canvas {:width 1280 :height 960
                                    :style "border: 1px solid #000"}]))
 
 (def ctx (.getContext canvas "2d"))
-
-(.appendChild (js/document.querySelector "body") canvas)
 
 (def l1 [[0 0] [100 100]])
 (def l2 [[40 23] [50 -10]])
@@ -80,6 +76,8 @@ ax < bx, ay > by.  Z represents the camera's height off the ground."
 (def state (atom [0 0]))
 
 (defn setup []
+  (set! (.-innerHTML (js/document.querySelector "body")) "")
+  (.appendChild (js/document.querySelector "body") canvas)
   (draw-scene @state)
   (set! (.-onmousedown canvas)
         (fn [evt]
