@@ -319,7 +319,7 @@ as changed."
                      (js/window.requestAnimationFrame loopage))))
          (unset-keys))))))
 
-(defn ^:export init-everything []
+(defn init-everything []
   (let [body (js/document.querySelector "body")]
     (set! (.-innerHTML body) "")
     (.appendChild body (doto (hipo/create

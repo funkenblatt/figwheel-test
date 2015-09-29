@@ -12,6 +12,9 @@
               (hipo/create [:canvas {:width w :height h
                                      :style "border: 1px solid #000; display: block;"}])))
 
+(defn scale-factor []
+  (-> canvas .-width (/ 1280)))
+
 (def print-area (hipo/create [:div]))
 (def ctx (.getContext canvas "2d"))
 

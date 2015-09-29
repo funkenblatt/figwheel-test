@@ -1,6 +1,6 @@
 (ns figwheel-test.turret
   (:require [figwheel-test.common
-             :refer [tau button canvas ctx fooprint init-elements]]
+             :refer [tau button canvas ctx fooprint init-elements scale-factor]]
             [figwheel-test.geometry :as g]
             [figwheel-test.canvas :as c])
   (:require-macros [figwheel-test.macros :as m]))
@@ -9,12 +9,14 @@
   (c/with-saved-context
     ctx (fn []
           (when clear? (c/clear ctx))
-          (.translate ctx 640 480)
-          (.scale ctx 1 -1)
-          (f))))
+          (let [s (scale-factor)]
+            (.scale ctx s s)
+            (.translate ctx 640 480)
+            (.scale ctx 1 -1)
+            (f)))))
 
 (defn screen->world [p]
-  (let [[x y] (g/v- p [640 480])]
+  (let [[x y] (g/v- (g/vscale (/ 1 (scale-factor)) p) [640 480])]
     [x (- y)]))
 
 (defn midpoint-displace [points mag iterations]
@@ -206,6 +208,7 @@
                    (fn [v2] (g/vscale (/ 1 1.25) (g/v+ v2 (g/vscale 0.25 v)))))
         (update-in [:enemies enemy-id :health] dec)
         (update :bullets dissoc name)
+        (update :score inc)
         (splatter x 4 4 8))
     (particle-update state :bullets name self)))
 
@@ -260,9 +263,10 @@ segment going from p1 to p2.  Returns nil if no impact."
      nil indices)))
 
 (defn enemy-death [state name {:keys [x]}]
-  (splatter
-   (update state :enemies dissoc name)
-   x 15 6 12))
+  (-> state
+      (update :enemies dissoc name)
+      (update :score + 5)
+      (splatter x 15 6 12)))
 
 (defn enemy-update [state name {:keys [x v w health] :as self}]
   (cond
@@ -325,6 +329,7 @@ segment going from p1 to p2.  Returns nil if no impact."
    :terrain (generate-terrain)
    :enemies {}
    :chunks {}
+   :score 0
    :enemy-spawn 60
    :player {:th 0 :w 0 :cooldown 0 :k 0.02 :b 0.15
             :barrel-change 0
@@ -337,6 +342,7 @@ segment going from p1 to p2.  Returns nil if no impact."
 (def dir (atom [1 0]))
 (def state (atom (init-state)))
 (def trigger (atom false))
+(def high-score (atom 0))
 
 (defn update-all [state key update-fn]
   (reduce-kv update-fn state (key state)))
@@ -379,11 +385,12 @@ segment going from p1 to p2.  Returns nil if no impact."
          (.fillRect ctx -630 370 10 (:temperature (:player state)))
          (.strokeRect ctx -630 370 10 100)
          (.fillRect ctx -610 370 10 (/ (:barrel-change (:player state)) 6))
-         (set! (.-font ctx) "10px serif")
+         (set! (.-font ctx) (str (/ 10 (scale-factor)) "px serif"))
          (.translate ctx -630 350)
          (.scale ctx 1 -1)
-         (.fillText ctx (str "Ammo: " (:ammo (:player state)))
-                    0 0))
+         (.fillText ctx (str "Ammo: " (:ammo (:player state))) 0 0)
+         (.translate ctx 0 (/ 12 (scale-factor)))
+         (.fillText ctx (str "Score: " (:score state)) 0 0))
     true))
 
 (defn run-loop []
@@ -403,7 +410,9 @@ segment going from p1 to p2.  Returns nil if no impact."
                 (reset! stop true)
                 (set! js/window.onmousemove nil)
                 (set! (.-onclick button) run-loop))
-            (do (reset! state (init-state))
+            (do (swap! high-score max (:score @state))
+                (fooprint "High Score: " @high-score)
+                (reset! state (init-state))
                 (set! (.-textContent button) "Pause")))))
 
   (set! (.-onmousedown canvas) (fn [] (reset! trigger true) false))
