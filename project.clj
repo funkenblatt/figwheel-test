@@ -13,7 +13,7 @@
   :cljsbuild {:builds
               [{:id "foo"
                 :source-paths ["cljs/" "src/"]
-                :figwheel true
+                :figwheel {:websocket-host :js-client-host}
                 :compiler {:main "figwheel-test.snake"
                            :asset-path "js"
                            :output-to "resources/public/stuff.js"

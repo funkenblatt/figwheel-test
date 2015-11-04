@@ -231,7 +231,7 @@ as changed."
           :targets {}
           :walls (concat
                   (poly->segments [[-642 482] [642 482] [642 -482] [-642 -482] [-642 482]])
-                  (l/levels (:level game-state)))
+                  (l/levels (mod (:level game-state) (count l/levels))))
           :stop false)
    (range 10)))
 
@@ -272,6 +272,9 @@ as changed."
   (set! (.-onclick button)
         (fn []
           (fooprint "Press A and D to turn left and right.")
+          (js/mixpanel.track
+           "start level"
+           #js{:level (:level @my-snake)})
           (swap! my-snake init-snake ctx)
           (run-shit ctx)
           (set-pause! ctx))))
@@ -306,11 +309,7 @@ as changed."
                  (empty? (:targets updated))
                  (do (fooprint "You did it, Snake!  Unfortunately there's another facility 
                                 we need you to infiltrate.")
-                     (swap! my-snake (fn [state]
-                                       (assoc
-                                        state :level
-                                        (mod (inc (:level state))
-                                             (count l/levels)))))
+                     (swap! my-snake update :level inc)
                      (set-start! ctx)
                      (unset-keys))
 
@@ -319,7 +318,7 @@ as changed."
                      (js/window.requestAnimationFrame loopage))))
          (unset-keys))))))
 
-(defn init-everything []
+(defn ^:export init-everything []
   (let [body (js/document.querySelector "body")]
     (set! (.-innerHTML body) "")
     (.appendChild body (doto (hipo/create
