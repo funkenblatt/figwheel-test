@@ -9,7 +9,7 @@
 
 (def tau (* 2 js/Math.PI))
 
-(def turning-radius 20)
+(def turning-radius 25)
 
 (defmulti draw-segment (fn [ctx segment] (:type segment)))
 
@@ -218,22 +218,25 @@ as changed."
 
 (defn init-snake
   "Set the game to its initial state."
-  [game-state ctx]
-  (reduce
-   (fn [state n] (update state :targets
-                         assoc n {:type ::arc :c (make-target ctx state)
-                                  :th1 0 :th2 tau :dir 1 :r 10}))
-   (assoc game-state
-          :segments starting-segments
-          :length 100
-          :target-length 100
-          :turn nil
-          :targets {}
-          :walls (concat
-                  (poly->segments [[-642 482] [642 482] [642 -482] [-642 -482] [-642 482]])
-                  (l/levels (mod (:level game-state) (count l/levels))))
-          :stop false)
-   (range 10)))
+  ([game-state ctx]
+   (init-snake game-state ctx
+               (l/levels (mod (:level game-state) (count l/levels)))))
+  ([game-state ctx level]
+   (reduce
+    (fn [state n] (update state :targets
+                          assoc n {:type ::arc :c (make-target ctx state)
+                                   :th1 0 :th2 tau :dir 1 :r 10}))
+    (assoc game-state
+           :segments starting-segments
+           :length 100
+           :target-length 100
+           :turn nil
+           :targets {}
+           :walls (concat
+                   (poly->segments [[-642 482] [642 482] [642 -482] [-642 -482] [-642 482]])
+                   level)
+           :stop false)
+    (range 10))))
 
 (def my-snake (atom {:level 0}))
 
@@ -255,7 +258,7 @@ as changed."
   (set! (.-textContent print-area)
         (->> (map str args) (clojure.string/join ""))))
 
-(defn set-pause! [ctx]
+(defn set-pause! [ctx on-death on-win]
   (set! (.-textContent button) "Pause")
   (set! (.-onclick button)
         (fn []
@@ -264,8 +267,11 @@ as changed."
           (set! (.-onclick button)
                 (fn []
                   (swap! my-snake assoc :stop false)
-                  (run-shit ctx)
+                  (run-shit ctx on-death on-win)
                   (set-pause! ctx))))))
+
+(def unset-keys #(do (set! js/window.onkeydown nil)
+                     (set! js/window.onkeyup nil)))
 
 (defn set-start! [ctx]
   (set! (.-textContent button) "Start")
@@ -276,12 +282,24 @@ as changed."
            "start level"
            #js{:level (:level @my-snake)})
           (swap! my-snake init-snake ctx)
-          (run-shit ctx)
-          (set-pause! ctx))))
+          (let [on-death (fn [ctx]
+                           (fooprint "Snake?  Snake?! SNAAAAAAAAKE!!")
+                           (reset! death-state @my-snake)
+                           (set-start! ctx)
+                           (unset-keys))
+
+                on-win (fn [ctx] 
+                         (fooprint "You did it, Snake!  Unfortunately there's another facility 
+                                we need you to infiltrate.")
+                         (swap! my-snake update :level inc)
+                         (set-start! ctx)
+                         (unset-keys))]
+            (run-shit ctx on-death on-win)
+            (set-pause! ctx on-death on-win)))))
 
 (def turn-map {65 :left 37 :left 68 :right 39 :right})
 
-(defn run-shit [ctx]
+(defn run-shit [ctx on-death on-win]
   (set! js/window.onkeydown
                 (fn [evt]
                   (if-let [turn (turn-map (.-which evt))]
@@ -292,31 +310,20 @@ as changed."
             (if (= turn (:turn @my-snake))
               (swap! my-snake turn-snake nil)))))
   
-  (let [unset-keys #(do (set! js/window.onkeydown nil)
-                        (set! js/window.onkeyup nil))]
-    ((fn loopage []
-       (if (not (:stop @my-snake))
-         (let [updated (swap! my-snake
-                              (fn [state]
-                                (check-targets
-                                 (move-snake state 3 (:target-length state)))))]
-           (cond (check-walls updated)
-                 (do (fooprint "Snake?  Snake?! SNAAAAAAAAKE!!")
-                     (reset! death-state @my-snake)
-                     (set-start! ctx)
-                     (unset-keys))
+  ((fn loopage []
+     (if (not (:stop @my-snake))
+       (let [updated (swap! my-snake
+                            (fn [state]
+                              (check-targets
+                               (move-snake state 3 (:target-length state)))))]
+         (cond (check-walls updated) (on-death ctx)
 
-                 (empty? (:targets updated))
-                 (do (fooprint "You did it, Snake!  Unfortunately there's another facility 
-                                we need you to infiltrate.")
-                     (swap! my-snake update :level inc)
-                     (set-start! ctx)
-                     (unset-keys))
+               (empty? (:targets updated)) (on-win ctx)
 
-                 true
-                 (do (draw-shit ctx @my-snake)
-                     (js/window.requestAnimationFrame loopage))))
-         (unset-keys))))))
+               true
+               (do (draw-shit ctx @my-snake)
+                   (js/window.requestAnimationFrame loopage))))
+       (unset-keys)))))
 
 (defn ^:export init-everything []
   (let [body (js/document.querySelector "body")]
