@@ -1,6 +1,7 @@
 (ns figwheel-test.editor
   (:require-macros [figwheel-test.macros :as m])
   (:require [figwheel-test.canvas :as c]
+            [figwheel-test.geometry :as g]
             [figwheel-test.snake :as s]))
 
 (defn canvas-coord [ctx evt]
@@ -55,6 +56,8 @@
                   :id 0}))
 
 (defn draw-state [{:keys [selected walls] :as state} ctx]
+  (c/stroke-circle ctx [640 480] 2)
+  (c/stroke-circle ctx [740 480] 2)
   (run! (fn [[key poly]]
           (c/with-saved-context
             ctx
@@ -99,3 +102,30 @@
                  [p1 p2] (map vector poly (rest poly))]
              {:type :figwheel-test.snake/line
               :p1 (undo-viewport p1) :p2 (undo-viewport p2)})))
+
+(defn nearest-thing [{:as state :keys [walls]} p]
+  (reduce (partial min-key second)
+          (for [[k poly] walls
+                segment (map vector poly (rest poly))]
+            [k (g/closest-approach segment p)])))
+
+(defn select-thing [ctx]
+  (clear-handlers ctx)
+  (set! (-> ctx .-canvas .-onmouseup)
+        (fn [e]
+          (let [p (canvas-coord ctx e)]
+            (let [[key distance] (nearest-thing @state p)]
+              (swap! state assoc :selected
+                     (if (< distance 20) key nil))
+              (c/clear ctx)
+              (draw-state @state ctx)))))
+
+  (set! (-> js/window .-onkeypress)
+        (fn [e]
+          (when (and (= (.-which e) 8)
+                     (:selected @state))
+            (swap! state (fn [{:keys [selected] :as s}]
+                           (update s :walls dissoc selected)))
+            (c/clear ctx)
+            (draw-state @state ctx)))))
+
