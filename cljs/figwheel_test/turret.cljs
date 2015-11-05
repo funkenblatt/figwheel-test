@@ -1,7 +1,7 @@
 (ns figwheel-test.turret
   (:require [figwheel-test.common
-             :refer [tau button canvas ctx fooprint init-elements scale-factor
-                     with-viewport]]
+             :refer [tau canvas ctx fooprint init-elements scale-factor
+                     with-viewport on-space]]
             [figwheel-test.geometry :as g]
             [figwheel-test.canvas :as c])
   (:require-macros [figwheel-test.macros :as m]))
@@ -359,7 +359,6 @@ segment going from p1 to p2.  Returns nil if no impact."
                       enemy-spawn-update)]
     (if (and (not (alive? new-state)) (alive? state))
       (do
-        (set! (.-textContent button) "Restart")
         (splatter new-state (get-in new-state [:player :pos]) 20
                   10 20))
       new-state)))
@@ -386,7 +385,7 @@ segment going from p1 to p2.  Returns nil if no impact."
 
 (defn run-loop []
   (reset! stop false)
-  (set! (.-textContent button) "Pause")
+  
   (set! js/window.onmousemove
         (fn [evt]
           (reset! dir (-> [(.-pageX evt) (.-pageY evt)]
@@ -394,17 +393,15 @@ segment going from p1 to p2.  Returns nil if no impact."
                           screen->world
                           (g/v- (get-in @state [:player :pos]))))))
   
-  (set! (.-onclick button)
-        (fn []
-          (if (alive? @state)
-            (do (set! (.-textContent button) "Resume")
-                (reset! stop true)
-                (set! js/window.onmousemove nil)
-                (set! (.-onclick button) run-loop))
-            (do (swap! high-score max (:score @state))
-                (fooprint "High Score: " @high-score)
-                (reset! state (init-state))
-                (set! (.-textContent button) "Pause")))))
+  (on-space
+   (fn []
+     (if (alive? @state)
+       (do (reset! stop true)
+           (set! js/window.onmousemove nil)
+           (on-space run-loop))
+       (do (swap! high-score max (:score @state))
+           (fooprint "High Score: " @high-score)
+           (reset! state (init-state))))))
 
   (set! (.-onmousedown canvas) (fn [] (reset! trigger true) false))
   (set! (.-onmouseup js/window) (fn [] (reset! trigger false) false))
@@ -417,8 +414,7 @@ segment going from p1 to p2.  Returns nil if no impact."
 
 (defn init-everything []
   (init-elements)
-  (set! (.-textContent button) "Start")
-  (set! (.-onclick button) run-loop))
+  (on-space run-loop))
 
 (comment
   (m/cps-let [x (read-point* ctx (comp ! screen->world))

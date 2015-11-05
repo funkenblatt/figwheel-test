@@ -4,7 +4,8 @@
             [figwheel-test.snake-levels :as l]
             [figwheel-test.common :refer [tau canvas ctx fooprint
                                           init-elements scale-factor
-                                          with-viewport center-print]]
+                                          with-viewport center-print
+                                          on-space]]
             [clojure.core.rrb-vector :as rrb]
             [hipo.core :as hipo]
             clojure.string)
@@ -231,12 +232,6 @@ as changed."
                    level)
            :stop false)
     (range 10))))
-
-(defn on-space [f]
-  (set! js/window.onkeypress
-        (fn [e]
-          (when (= (.-which e) 32)
-            (f)))))
 
 (def my-snake (atom {:level 0}))
 

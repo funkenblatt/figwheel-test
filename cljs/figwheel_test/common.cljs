@@ -40,6 +40,12 @@
             (.scale ctx 1 -1)
             (f)))))
 
+(defn on-space [f]
+  (set! js/window.onkeypress
+        (fn [e]
+          (when (= (.-which e) 32)
+            (f)))))
+
 (defn center-print [s]
   (with-viewport
     (fn []
