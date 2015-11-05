@@ -2,12 +2,13 @@
   (:require [figwheel-test.geometry :as g]
             [figwheel-test.canvas :as c]
             [figwheel-test.snake-levels :as l]
+            [figwheel-test.common :refer [tau canvas ctx fooprint
+                                          init-elements scale-factor
+                                          with-viewport center-print]]
             [clojure.core.rrb-vector :as rrb]
             [hipo.core :as hipo]
             clojure.string)
   (:require-macros [figwheel-test.macros :as m]))
-
-(def tau (* 2 js/Math.PI))
 
 (def turning-radius 25)
 
@@ -116,19 +117,12 @@ as changed."
     snake))
 
 (defn draw-shit [ctx game-state]
-  (c/with-saved-context
-    ctx
-    (fn []
-      (let [can (.-canvas ctx)
-            w (.-width can) h (.-height can)
-            scale-factor (/ w 1280)]
-        (c/clear ctx)
-        (.translate ctx (/ w 2) (/ h 2))
-        (.scale ctx scale-factor (- scale-factor))
-        (run! (partial draw-segment ctx)
-              (concat (:walls game-state)
-                      (map val (:targets game-state))
-                      (:segments game-state)))))))
+  (with-viewport
+    (fn [] (run! (partial draw-segment ctx)
+                 (concat (:walls game-state)
+                         (map val (:targets game-state))
+                         (:segments game-state))))
+    true))
 
 (defn contains-angle? [{:keys [th1 th2 dir]} angle]
   (if (> (* dir (- th2 th1)) tau)
@@ -238,64 +232,56 @@ as changed."
            :stop false)
     (range 10))))
 
+(defn on-space [f]
+  (set! js/window.onkeypress
+        (fn [e]
+          (when (= (.-which e) 32)
+            (f)))))
+
 (def my-snake (atom {:level 0}))
 
 (declare run-shit)
 
-(def button (hipo/create [:button "Pause"])) 
-(def canvas (let [w (min 1280
-                         (quot (* (- js/window.innerWidth 20) 3) 4)
-                         (quot (* (- js/window.innerHeight 10) 4) 3))
-                  h (quot (* w 3) 4)]
-              
-              (hipo/create [:canvas {:width w :height h
-                                     :style "border: 1px solid #000; display: block;"}])))
-
-(def print-area (hipo/create [:div]))
-(def ctx (.getContext canvas "2d"))
-
-(defn fooprint [& args]
-  (set! (.-textContent print-area)
-        (->> (map str args) (clojure.string/join ""))))
-
 (defn set-pause! [ctx on-death on-win]
-  (set! (.-textContent button) "Pause")
-  (set! (.-onclick button)
-        (fn []
-          (swap! my-snake assoc :stop true)
-          (set! (.-textContent button) "Go")
-          (set! (.-onclick button)
-                (fn []
-                  (swap! my-snake assoc :stop false)
-                  (run-shit ctx on-death on-win)
-                  (set-pause! ctx))))))
+  (on-space
+   (fn []
+     (swap! my-snake assoc :stop true)
+     (js/window.requestAnimationFrame
+      #(center-print "Paused"))
+     (on-space
+      (fn []
+        (swap! my-snake assoc :stop false)
+        (run-shit ctx on-death on-win)
+        (set-pause! ctx on-death on-win))))))
 
 (def unset-keys #(do (set! js/window.onkeydown nil)
                      (set! js/window.onkeyup nil)))
 
 (defn set-start! [ctx]
-  (set! (.-textContent button) "Start")
-  (set! (.-onclick button)
-        (fn []
-          (fooprint "Press A and D to turn left and right.")
-          (js/mixpanel.track
-           "start level"
-           #js{:level (:level @my-snake)})
-          (swap! my-snake init-snake ctx)
-          (let [on-death (fn [ctx]
-                           (fooprint "Snake?  Snake?! SNAAAAAAAAKE!!")
-                           (reset! death-state @my-snake)
-                           (set-start! ctx)
-                           (unset-keys))
+  (swap! my-snake init-snake ctx)
+  (draw-shit ctx @my-snake)
+  (on-space
+   (fn []
+     (js/mixpanel.track
+      "start level"
+      #js{:level (:level @my-snake)})
+     
+     (let [on-death (fn [ctx]
+                      (reset! death-state @my-snake)
+                      (unset-keys)
+                      (set-start! ctx)
+                      (center-print
+                       "\n\n\nSnake?  Snake?! SNAAAAAAAAKE!!\n\n(Press Space to Continue)"))
 
-                on-win (fn [ctx] 
-                         (fooprint "You did it, Snake!  Unfortunately there's another facility 
-                                we need you to infiltrate.")
-                         (swap! my-snake update :level inc)
-                         (set-start! ctx)
-                         (unset-keys))]
-            (run-shit ctx on-death on-win)
-            (set-pause! ctx on-death on-win)))))
+           on-win (fn [ctx]
+                    (swap! my-snake update :level inc)
+                    (unset-keys)
+                    (set-start! ctx)
+                    (center-print
+                     "\n\n\nYou did it, Snake!  Unfortunately there's another facility
+we need you to infiltrate.\n\n(Press Space to Continue)"))]
+       (run-shit ctx on-death on-win)
+       (set-pause! ctx on-death on-win)))))
 
 (def turn-map {65 :left 37 :left 68 :right 39 :right})
 
@@ -326,18 +312,14 @@ as changed."
        (unset-keys)))))
 
 (defn ^:export init-everything []
-  (let [body (js/document.querySelector "body")]
-    (set! (.-innerHTML body) "")
-    (.appendChild body (doto (hipo/create
-                              [:div {:style "float: right; text-align: right; width: 25%"}])
-                         (.appendChild button)
-                         (.appendChild print-area)))
-    (.appendChild body canvas)
-    (fooprint "Snake!  We need you to infiltrate this 2D facility and retrieve
+  (init-elements)
+  (set-start! ctx)
+  (center-print "\n\n\n\nSnake!  We need you to infiltrate this 2D facility and retrieve
 all of the plans for Plastic Gear!  Don't touch any of the walls in the facility
 though, they're coated with a deadly neurotoxin!  Also, don't touch yourself either,
-we've heard that's bad for you.")
-    (set-start! ctx)))
+we've heard that's bad for you.
+
+You'll need to turn left and right using the A and D keys."))
 
 (comment
   (update-head {:type ::arc

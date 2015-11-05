@@ -1,19 +1,10 @@
 (ns figwheel-test.turret
   (:require [figwheel-test.common
-             :refer [tau button canvas ctx fooprint init-elements scale-factor]]
+             :refer [tau button canvas ctx fooprint init-elements scale-factor
+                     with-viewport]]
             [figwheel-test.geometry :as g]
             [figwheel-test.canvas :as c])
   (:require-macros [figwheel-test.macros :as m]))
-
-(defn with-viewport [f clear?]
-  (c/with-saved-context
-    ctx (fn []
-          (when clear? (c/clear ctx))
-          (let [s (scale-factor)]
-            (.scale ctx s s)
-            (.translate ctx 640 480)
-            (.scale ctx 1 -1)
-            (f)))))
 
 (defn screen->world [p]
   (let [[x y] (g/v- (g/vscale (/ 1 (scale-factor)) p) [640 480])]
@@ -424,7 +415,7 @@ segment going from p1 to p2.  Returns nil if no impact."
             (swap! state update-state)
             (js/window.requestAnimationFrame lp))))
 
-(defn ^:export init-everything []
+(defn init-everything []
   (init-elements)
   (set! (.-textContent button) "Start")
   (set! (.-onclick button) run-loop))
