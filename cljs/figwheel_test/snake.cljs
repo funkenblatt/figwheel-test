@@ -5,7 +5,7 @@
             [figwheel-test.common :refer [tau canvas ctx fooprint
                                           init-elements scale-factor
                                           with-viewport center-print
-                                          on-space]]
+                                          on-space undo-viewport]]
             [clojure.core.rrb-vector :as rrb]
             [hipo.core :as hipo]
             clojure.string)
@@ -257,9 +257,10 @@ as changed."
   (draw-shit ctx @my-snake)
   (on-space
    (fn []
-     (js/mixpanel.track
-      "start level"
-      #js{:level (:level @my-snake)})
+     (try (js/mixpanel.track
+           "start level"
+           #js{:level (:level @my-snake)})
+          (catch js/Error e ))
      
      (let [on-death (fn [ctx]
                       (reset! death-state @my-snake)
@@ -276,7 +277,8 @@ as changed."
                      "\n\n\nYou did it, Snake!  Unfortunately there's another facility
 we need you to infiltrate.\n\n(Press Space to Continue)"))]
        (run-shit ctx on-death on-win)
-       (set-pause! ctx on-death on-win)))))
+       ;; (set-pause! ctx on-death on-win)
+       ))))
 
 (def turn-map {65 :left 37 :left 68 :right 39 :right})
 
@@ -290,6 +292,18 @@ we need you to infiltrate.\n\n(Press Space to Continue)"))]
           (if-let [turn (turn-map (.-which evt))]
             (if (= turn (:turn @my-snake))
               (swap! my-snake turn-snake nil)))))
+  (set! (.-ontouchstart canvas)
+        (fn [evt]
+          (.preventDefault evt)
+          (let [{:as head :keys [dir p1]} (last (:segments @my-snake))
+                p (undo-viewport (c/canvas-coord ctx (-> evt .-touches (.item 0))))
+                leftness (g/vdot (g/v- p p1) (seg-normal head :left))]
+            (swap! my-snake turn-snake
+                   (if (> leftness 0) :left :right)))))
+  (set! (.-ontouchend canvas)
+        (fn [evt]
+          (.preventDefault evt)
+          (swap! my-snake turn-snake nil)))
   
   ((fn loopage []
      (if (not (:stop @my-snake))
