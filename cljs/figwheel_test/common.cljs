@@ -44,7 +44,10 @@
   (set! js/window.onkeypress
         (fn [e]
           (when (= (.-which e) 32)
-            (f)))))
+            (f))))
+
+  (set! canvas.ontouchstart
+        (fn [e] (f))))
 
 (defn center-print [s]
   (with-viewport
@@ -60,3 +63,6 @@
        (map clojure.string/trim
             (clojure.string/split s "\n"))))
     false))
+
+(defn undo-viewport [[x y]]
+  [(- (/ x (scale-factor)) 640) (+ 480 (- (/ y (scale-factor))))])

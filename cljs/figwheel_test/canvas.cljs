@@ -38,3 +38,9 @@
     (if-let [p (.-offsetParent e)]
       (recur p (+ x (.-offsetLeft p)) (+ y (.-offsetTop p)))
       (array x y))))
+
+(defn canvas-coord [ctx evt]
+  (let [can (.-canvas ctx)
+        [x y] (elem-offset can)]
+    (array (- (.-pageX evt) x)
+           (- (.-pageY evt) y))))

@@ -1,14 +1,10 @@
 (ns figwheel-test.editor
   (:require-macros [figwheel-test.macros :as m])
-  (:require [figwheel-test.canvas :as c]
+  (:require [figwheel-test.canvas :as c :refer [canvas-coord]]
+            [figwheel-test.common :as common
+             :refer [undo-viewport]]
             [figwheel-test.geometry :as g]
             [figwheel-test.snake :as s]))
-
-(defn canvas-coord [ctx evt]
-  (let [can (.-canvas ctx)
-        [x y] (c/elem-offset can)]
-    (array (- (.-pageX evt) x)
-           (- (.-pageY evt) y))))
 
 (defn read-point [ctx cont]
   (let [can (.-canvas ctx)
@@ -94,9 +90,6 @@
         (add-walls ctx))))
    (fn [ctx] (draw-state @state ctx))))
 
-(defn undo-viewport [[x y]]
-  [(- x 640) (+ 480 (- y))])
-
 (defn to-level [{:as state :keys [walls]}]
   (into [] (for [[k poly] walls
                  [p1 p2] (map vector poly (rest poly))]
@@ -129,3 +122,15 @@
             (c/clear ctx)
             (draw-state @state ctx)))))
 
+(defn play-level [level-geo ctx]
+  (common/on-space
+   (fn []
+     (swap! s/my-snake s/init-snake ctx level-geo)
+     (let [on-death (fn [ctx]
+                      (play-level level-geo ctx)
+                      (s/unset-keys))
+           on-win (fn [ctx]
+                    (s/set-start! ctx)
+                    (s/unset-keys))]
+       (s/run-shit ctx on-death on-win)
+       (s/set-pause! ctx on-death on-win)))))
