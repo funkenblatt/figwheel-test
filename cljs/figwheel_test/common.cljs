@@ -66,3 +66,12 @@
 
 (defn undo-viewport [[x y]]
   [(- (/ x (scale-factor)) 640) (+ 480 (- (/ y (scale-factor))))])
+
+(defn all-keys [o]
+  (let [kwad (atom #{})]
+    (goog.object/forEach
+     o
+     (fn [val key obj] (swap! kwad conj key)))
+    @kwad))
+
+(def mobile? (contains? (all-keys js/window) "ontouchstart"))

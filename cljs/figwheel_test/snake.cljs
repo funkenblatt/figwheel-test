@@ -5,7 +5,8 @@
             [figwheel-test.common :refer [tau canvas ctx fooprint
                                           init-elements scale-factor
                                           with-viewport center-print
-                                          on-space undo-viewport]]
+                                          on-space undo-viewport
+                                          mobile?]]
             [clojure.core.rrb-vector :as rrb]
             [hipo.core :as hipo]
             clojure.string)
@@ -238,16 +239,17 @@ as changed."
 (declare run-shit)
 
 (defn set-pause! [ctx on-death on-win]
-  (on-space
-   (fn []
-     (swap! my-snake assoc :stop true)
-     (js/window.requestAnimationFrame
-      #(center-print "Paused"))
-     (on-space
-      (fn []
-        (swap! my-snake assoc :stop false)
-        (run-shit ctx on-death on-win)
-        (set-pause! ctx on-death on-win))))))
+  (when (not mobile?)
+    (on-space
+     (fn []
+       (swap! my-snake assoc :stop true)
+       (js/window.requestAnimationFrame
+        #(center-print "Paused"))
+       (on-space
+        (fn []
+          (swap! my-snake assoc :stop false)
+          (run-shit ctx on-death on-win)
+          (set-pause! ctx on-death on-win)))))))
 
 (def unset-keys #(do (set! js/window.onkeydown nil)
                      (set! js/window.onkeyup nil)))
@@ -277,8 +279,7 @@ as changed."
                      "\n\n\nYou did it, Snake!  Unfortunately there's another facility
 we need you to infiltrate.\n\n(Press Space to Continue)"))]
        (run-shit ctx on-death on-win)
-       ;; (set-pause! ctx on-death on-win)
-       ))))
+       (set-pause! ctx on-death on-win)))))
 
 (def turn-map {65 :left 37 :left 68 :right 39 :right})
 
