@@ -297,10 +297,10 @@ we need you to infiltrate.\n\n(Press Space to Continue)"))]
         (fn [evt]
           (.preventDefault evt)
           (let [{:as head :keys [dir p1]} (last (:segments @my-snake))
-                p (undo-viewport (c/canvas-coord ctx (-> evt .-touches (.item 0))))
-                leftness (g/vdot (g/v- p p1) (seg-normal head :left))]
+                [px py] (undo-viewport (c/canvas-coord ctx (-> evt .-touches (.item 0))))]
             (swap! my-snake turn-snake
-                   (if (> leftness 0) :left :right)))))
+                   (cond (< px -320) :left
+                         (> px 320) :right)))))
   (set! (.-ontouchend canvas)
         (fn [evt]
           (.preventDefault evt)

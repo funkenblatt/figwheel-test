@@ -1,6 +1,7 @@
 (ns figwheel-test.common
   (:require [hipo.core :as hipo]
             [figwheel-test.canvas :as c]
+            goog.object
             clojure.string))
 
 (def tau (* 2 js/Math.PI)) 
