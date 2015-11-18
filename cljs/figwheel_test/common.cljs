@@ -60,10 +60,12 @@
                     (< 200))
             (f)))))
 
-(defn viewport-print-1 [x y txt align]
+(defn viewport-print-1 [x y txt {:keys [align font]
+                                 :or {align :left
+                                      font "20px sans"}}]
   (c/with-saved-context ctx
     (fn []
-      (set! (.-font ctx) "20px sans")
+      (set! (.-font ctx) font)
       (set! (.-fillStyle ctx) "#000")
       (let [width (-> ctx (.measureText txt) .-width)
             x-offset (case align
@@ -78,16 +80,15 @@
   "Print something on the canvas, assuming usual viewport coordinate
   system.  Takes an optional alignment argument that can be one of
   :left, :right, or :center"
-  ([x y txt] (viewport-print x y txt :left))
-  ([x y txt align]
+  ([x y txt & {:as options}]
    (with-viewport
      #(->> (clojure.string/split txt "\n")
            (map clojure.string/trim)
            (reduce (fn [y s]
-                     (viewport-print-1 x y s align)
+                     (viewport-print-1 x y s options)
                      (- y 20))
                    y))
      false)))
 
 (defn center-print [s]
-  (viewport-print 0 0 s :center))
+  (viewport-print 0 0 s :align :center))
