@@ -41,6 +41,11 @@
             (.scale ctx 1 -1)
             (f)))))
 
+(def mobile? false)
+
+(defn undo-viewport [[x y]]
+  [(- (/ x (scale-factor)) 640) (+ 480 (- (/ y (scale-factor))))])
+
 (defn on-space [f]
   (set! js/window.onkeypress
         (fn [e]
@@ -48,7 +53,14 @@
             (f))))
 
   (set! canvas.ontouchstart
-        (fn [e] (f))))
+        (fn [e]
+          (set! mobile? true)
+          (when (-> (c/canvas-coord ctx e)
+                    undo-viewport
+                    first
+                    js/Math.abs
+                    (< 200))
+            (f)))))
 
 (defn center-print [s]
   (with-viewport
@@ -65,14 +77,5 @@
             (clojure.string/split s "\n"))))
     false))
 
-(defn undo-viewport [[x y]]
-  [(- (/ x (scale-factor)) 640) (+ 480 (- (/ y (scale-factor))))])
 
-(defn all-keys [o]
-  (let [kwad (atom #{})]
-    (goog.object/forEach
-     o
-     (fn [val key obj] (swap! kwad conj key)))
-    @kwad))
 
-(def mobile? (contains? (all-keys js/window) "ontouchstart"))
