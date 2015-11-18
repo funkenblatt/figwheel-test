@@ -254,32 +254,39 @@ as changed."
 (def unset-keys #(do (set! js/window.onkeydown nil)
                      (set! js/window.onkeyup nil)))
 
-(defn set-start! [ctx]
-  (swap! my-snake init-snake ctx)
-  (draw-shit ctx @my-snake)
-  (on-space
-   (fn []
-     (try (js/mixpanel.track
-           "start level"
-           #js{:level (:level @my-snake)})
-          (catch js/Error e ))
-     
-     (let [on-death (fn [ctx]
-                      (reset! death-state @my-snake)
-                      (unset-keys)
-                      (set-start! ctx)
-                      (center-print
-                       "\n\n\nSnake?  Snake?! SNAAAAAAAAKE!!\n\n(Press Space to Continue)"))
+;; (defn level-update [{:keys [level level-tries] :as state}]
+;;   (if (= (mod (inc level) (count l/levels)) 0)
+;;     ))
 
-           on-win (fn [ctx]
-                    (swap! my-snake update :level inc)
-                    (unset-keys)
-                    (set-start! ctx)
-                    (center-print
-                     "\n\n\nYou did it, Snake!  Unfortunately there's another facility
-we need you to infiltrate.\n\n(Press Space to Continue)"))]
-       (run-shit ctx on-death on-win)
-       (set-pause! ctx on-death on-win)))))
+(defn set-start!
+  ([ctx] (set-start! ctx "Press space or tap near the center when ready"))
+  ([ctx message]
+   (swap! my-snake init-snake ctx)
+   (draw-shit ctx @my-snake)
+   (center-print (str "\n\n" message))
+   (on-space
+    (fn []
+      (try (js/mixpanel.track
+            "start level"
+            #js{:level (:level @my-snake)})
+           (catch js/Error e ))
+      
+      (let [on-death (fn [ctx]
+                       (reset! death-state @my-snake)
+                       (unset-keys)
+                       (center-print
+                        "\n\n\nSnake?  Snake?! SNAAAAAAAAKE!!")
+                       (on-space #(set-start! ctx)))
+
+            on-win (fn [ctx]
+                     (swap! my-snake update :level inc)
+                     (unset-keys)
+                     (center-print
+                      "\n\n\nYou did it, Snake!  Unfortunately there's another facility
+we need you to infiltrate.")
+                     (on-space #(set-start! ctx)))]
+        (run-shit ctx on-death on-win)
+        (set-pause! ctx on-death on-win))))))
 
 (def turn-map {65 :left 37 :left 68 :right 39 :right})
 
@@ -299,8 +306,8 @@ we need you to infiltrate.\n\n(Press Space to Continue)"))]
           (let [{:as head :keys [dir p1]} (last (:segments @my-snake))
                 [px py] (undo-viewport (c/canvas-coord ctx (-> evt .-touches (.item 0))))]
             (swap! my-snake turn-snake
-                   (cond (< px -320) :left
-                         (> px 320) :right)))))
+                   (cond (< px -40) :left
+                         (> px 40) :right)))))
   (set! (.-ontouchend canvas)
         (fn [evt]
           (.preventDefault evt)
@@ -323,13 +330,17 @@ we need you to infiltrate.\n\n(Press Space to Continue)"))]
 
 (defn ^:export init-everything []
   (init-elements)
-  (set-start! ctx)
-  (center-print "\n\n\n\nSnake!  We need you to infiltrate this 2D facility and retrieve
+  (set-start! ctx
+              "
+
+Snake!  We need you to infiltrate this 2D facility and retrieve
 all of the plans for Plastic Gear!  Don't touch any of the walls in the facility
 though, they're coated with a deadly neurotoxin!  Also, don't touch yourself either,
 we've heard that's bad for you.
 
-You'll need to turn left and right using the A and D keys."))
+You'll need to turn left and right using the A and D keys.
+
+Press space or tap near the center of the screen to start"))
 
 (comment
   (update-head {:type ::arc
