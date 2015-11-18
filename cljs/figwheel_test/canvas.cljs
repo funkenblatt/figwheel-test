@@ -1,4 +1,6 @@
-(ns figwheel-test.canvas)
+(ns figwheel-test.canvas
+  (:require-macros [figwheel-test.macros :as m])
+  (:require [clojure.string :as s]))
 
 (defn lines [ctx & [[x0 y0] & _ :as points]]
   (.beginPath ctx)
@@ -44,3 +46,25 @@
         [x y] (elem-offset can)]
     (array (- (.-pageX evt) x)
            (- (.-pageY evt) y))))
+
+(defn color-str [components]
+  (str (if (= (count components) 4)
+         "rgba"
+         "rgb")
+       "(" (s/join "," components) ")"))
+
+(defn fade-out [rgb frames ctx cont]
+  (let [can (.-canvas ctx)
+        w (.-width can) h (.-height can)
+        alpha (- 1 (js/Math.pow 0.05 (/ 1 frames)))]
+    (m/nlet lp [n frames]
+            (js/window.requestAnimationFrame
+             (fn []
+               (with-saved-context ctx
+                 (fn []
+                   (set! (.-fillStyle ctx)
+                         (color-str
+                          (if (> n 0)
+                            (concat rgb [alpha]) rgb)))
+                   (.fillRect ctx 0 0 w h)))
+               (if (> n 0) (lp (dec n)) (cont)))))))
