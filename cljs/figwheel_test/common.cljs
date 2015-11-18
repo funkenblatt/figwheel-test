@@ -36,9 +36,7 @@
     ctx (fn []
           (when clear? (c/clear ctx))
           (let [s (scale-factor)]
-            (.scale ctx s s)
-            (.translate ctx 640 480)
-            (.scale ctx 1 -1)
+            (.setTransform ctx s 0 0 (- s) (* 640 s) (* 480 s))
             (f)))))
 
 (def mobile? false)
@@ -62,20 +60,34 @@
                     (< 200))
             (f)))))
 
-(defn center-print [s]
-  (with-viewport
+(defn viewport-print-1 [x y txt align]
+  (c/with-saved-context ctx
     (fn []
       (set! (.-font ctx) "20px sans")
-      (.scale ctx 1 -1)
-      (run!
-       (fn [x]
-         (.fillText ctx x
-                    (- (/ (.-width (.measureText ctx x)) 2))
-                    0)
-         (.translate ctx 0 20))
-       (map clojure.string/trim
-            (clojure.string/split s "\n"))))
-    false))
+      (set! (.-fillStyle ctx) "#000")
+      (let [width (-> ctx (.measureText txt) .-width)
+            x-offset (case align
+                       :left 0
+                       :center (/ width 2)
+                       :right width)]
+        (.translate ctx (- x x-offset) y)
+        (.scale ctx 1 -1)
+        (.fillText ctx txt 0 0)))))
 
+(defn viewport-print
+  "Print something on the canvas, assuming usual viewport coordinate
+  system.  Takes an optional alignment argument that can be one of
+  :left, :right, or :center"
+  ([x y txt] (viewport-print x y txt :left))
+  ([x y txt align]
+   (with-viewport
+     #(->> (clojure.string/split txt "\n")
+           (map clojure.string/trim)
+           (reduce (fn [y s]
+                     (viewport-print-1 x y s align)
+                     (- y 20))
+                   y))
+     false)))
 
-
+(defn center-print [s]
+  (viewport-print 0 0 s :center))
