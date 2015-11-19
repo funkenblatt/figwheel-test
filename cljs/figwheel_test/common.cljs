@@ -80,15 +80,24 @@
   "Print something on the canvas, assuming usual viewport coordinate
   system.  Takes an optional alignment argument that can be one of
   :left, :right, or :center"
-  ([x y txt & {:as options}]
+  ([x y txt & {:as options
+               :keys [line-height]
+               :or {line-height 20}}]
    (with-viewport
      #(->> (clojure.string/split txt "\n")
            (map clojure.string/trim)
            (reduce (fn [y s]
                      (viewport-print-1 x y s options)
-                     (- y 20))
+                     (- y line-height))
                    y))
      false)))
+
+(defn text-width [font text]
+  (c/with-saved-context
+    ctx
+    (fn []
+      (set! (.-font ctx) font)
+      (-> ctx (.measureText text) .-width))))
 
 (defn center-print [s]
   (viewport-print 0 0 s :align :center))

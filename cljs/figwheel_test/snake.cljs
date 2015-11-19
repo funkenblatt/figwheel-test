@@ -6,7 +6,8 @@
                                           init-elements scale-factor
                                           with-viewport center-print
                                           on-space undo-viewport
-                                          mobile?]]
+                                          mobile?]
+             :as com]
             [clojure.core.rrb-vector :as rrb]
             [hipo.core :as hipo]
             clojure.string)
@@ -234,9 +235,11 @@ as changed."
            :stop false)
     (range 10))))
 
-(def my-snake (atom {:level 0}))
+(def my-snake (atom {:level 0
+                     :level-tries (sorted-map)}))
 
 (declare run-shit)
+(declare set-start!)
 
 (defn set-pause! [ctx on-death on-win]
   (when (not mobile?)
@@ -254,9 +257,46 @@ as changed."
 (def unset-keys #(do (set! js/window.onkeydown nil)
                      (set! js/window.onkeyup nil)))
 
-;; (defn level-update [{:keys [level level-tries] :as state}]
-;;   (if (= (mod (inc level) (count l/levels)) 0)
-;;     ))
+(defn record-try []
+  (swap! my-snake update-in
+         [:level-tries (:level @my-snake)]
+         (fnil inc 0)))
+
+(defn show-level-tries [ctx level-tries y-start]
+  (with-viewport
+    (fn []
+      (let [max-tries (->> level-tries (map val) (reduce max))
+            font "16px serif"
+            max-width (->> level-tries
+                           (map (comp (partial com/text-width font)
+                                      (partial str "Level ")
+                                      val))
+                           (reduce max))
+            width (+ max-width 10 220 (com/text-width font (str max-tries)))
+            offset (/ width -2)]
+        (reduce
+         (fn [y [level tries]]
+           (com/viewport-print offset y (str "Level " level)
+                               :font font)
+           (.strokeRect ctx (+ offset max-width 10) (- y 4)
+                        (/ (* 200 tries) max-tries) 17)
+           (com/viewport-print (+ offset max-width 220) y (str tries) :font font)
+           (- y 25))
+         y-start level-tries)))
+    false))
+
+(defn levels-complete
+  "Show the victory screen and then do other stuff."
+  []
+  (c/fade-out [255 255 255] 30 ctx
+              (fn []
+                (show-level-tries ctx (:level-tries @my-snake) 150)
+                (com/viewport-print
+                 0 180 "You did it, Snake!  Here's how many tries it took you to beat each level."
+                 :align :center)
+
+                (swap! my-snake assoc :level-tries (sorted-map) :level 0)
+                (on-space #(do (set-start! ctx "Ready to try again?"))))))
 
 (defn set-start!
   ([ctx] (set-start! ctx "Press space or tap near the center when ready"))
@@ -272,19 +312,23 @@ as changed."
            (catch js/Error e ))
       
       (let [on-death (fn [ctx]
-                       (reset! death-state @my-snake)
+                       (record-try)
                        (unset-keys)
                        (center-print
                         "\n\n\nSnake?  Snake?! SNAAAAAAAAKE!!")
                        (on-space #(set-start! ctx)))
 
             on-win (fn [ctx]
+                     (record-try)
                      (swap! my-snake update :level inc)
                      (unset-keys)
-                     (center-print
-                      "\n\n\nYou did it, Snake!  Unfortunately there's another facility
+                     (if (= (:level @my-snake) (count l/levels))
+                       (levels-complete)
+                       (do
+                         (center-print
+                          "\n\n\nYou did it, Snake!  Unfortunately there's another facility
 we need you to infiltrate.")
-                     (on-space #(set-start! ctx)))]
+                         (on-space #(set-start! ctx)))))]
         (run-shit ctx on-death on-win)
         (set-pause! ctx on-death on-win))))))
 
