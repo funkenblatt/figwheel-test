@@ -53,7 +53,7 @@
   (set! canvas.ontouchstart
         (fn [e]
           (set! mobile? true)
-          (when (-> (c/canvas-coord ctx e)
+          (when (-> (c/canvas-coord ctx (-> e .-touches (.item 0)))
                     undo-viewport
                     first
                     js/Math.abs
