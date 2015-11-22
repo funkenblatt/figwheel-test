@@ -121,10 +121,17 @@ as changed."
 
 (defn draw-shit [ctx game-state]
   (with-viewport
-    (fn [] (run! (partial draw-segment ctx)
-                 (concat (:walls game-state)
-                         (map val (:targets game-state))
-                         (:segments game-state))))
+    (fn []
+      (let [[x y] (seg-endpoint (last (:segments game-state)))]
+        (.translate ctx
+                    (- (max (min x (- 640 (/ (.-width canvas) 2)))
+                            (- (/ (.-width canvas) 2) 640)))
+                    (- (max (min y (- 480 (/ (.-height canvas) 2)))
+                            (- (/ (.-height canvas) 2) 480))))
+        (run! (partial draw-segment ctx)
+              (concat (:walls game-state)
+                      (map val (:targets game-state))
+                      (:segments game-state)))))
     true))
 
 (defn contains-angle? [{:keys [th1 th2 dir]} angle]

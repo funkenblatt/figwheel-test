@@ -4,17 +4,24 @@
             goog.object
             clojure.string))
 
-(def tau (* 2 js/Math.PI)) 
-(def canvas (let [w (min 1280
-                         (quot (* (- js/window.innerWidth 20) 3) 4)
-                         (quot (* (- js/window.innerHeight 10) 4) 3))
-                  h (quot (* w 3) 4)]
-              
-              (hipo/create [:canvas {:width w :height h
-                                     :style "border: 1px solid #000; display: block;"}])))
+(def tau (* 2 js/Math.PI))
+
+(def canvas (hipo/create [:canvas
+                          {:width (max js/window.innerWidth 1280)
+                           :height (max js/window.innerHeight 960)
+                           :style "border: 1px solid #000; display: block;"}]))
+
+(set! js/window.onresize
+      (fn []
+        (set! (.-width canvas) js/window.innerWidth)
+        (set! (.-height canvas) js/window.innerHeight)))
 
 (defn scale-factor []
-  (-> canvas .-width (/ 1280)))
+  (let [aspect-ratio (/ (.-width canvas)
+                        (.-height canvas))]
+    (if (< aspect-ratio (/ 4 3))
+      (-> canvas .-height (/ 960))
+      (-> canvas .-width (/ 1280)))))
 
 (def print-area (hipo/create [:div]))
 (def ctx (.getContext canvas "2d"))
@@ -35,14 +42,16 @@
   (c/with-saved-context
     ctx (fn []
           (when clear? (c/clear ctx))
-          (let [s (scale-factor)]
-            (.setTransform ctx s 0 0 (- s) (* 640 s) (* 480 s))
+          (let [s 1]
+            (.setTransform ctx s 0 0 (- s)
+                           (/ (.-width canvas) 2)
+                           (/ (.-height canvas) 2))
             (f)))))
 
 (def mobile? false)
 
 (defn undo-viewport [[x y]]
-  [(- (/ x (scale-factor)) 640) (+ 480 (- (/ y (scale-factor))))])
+  [(- x (/ (.-width canvas) 2)) (- (/ (.-height canvas) 2) y)])
 
 (defn on-space [f]
   (set! js/window.onkeypress
