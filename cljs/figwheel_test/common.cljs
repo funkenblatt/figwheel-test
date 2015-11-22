@@ -7,8 +7,8 @@
 (def tau (* 2 js/Math.PI))
 
 (def canvas (hipo/create [:canvas
-                          {:width (max js/window.innerWidth 1280)
-                           :height (max js/window.innerHeight 960)
+                          {:width (min js/window.innerWidth 1280)
+                           :height (min js/window.innerHeight 960)
                            :style "border: 1px solid #000; display: block;"}]))
 
 (set! js/window.onresize
