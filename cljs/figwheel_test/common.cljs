@@ -13,8 +13,8 @@
 
 (set! js/window.onresize
       (fn []
-        (set! (.-width canvas) js/window.innerWidth)
-        (set! (.-height canvas) js/window.innerHeight)))
+        (set! (.-width canvas) (min js/window.innerWidth 1280))
+        (set! (.-height canvas) (min js/window.innerHeight 960))))
 
 (defn scale-factor []
   (let [aspect-ratio (/ (.-width canvas)
