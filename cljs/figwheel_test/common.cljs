@@ -7,14 +7,14 @@
 (def tau (* 2 js/Math.PI))
 
 (def canvas (hipo/create [:canvas
-                          {:width (min js/window.innerWidth 1280)
-                           :height (min js/window.innerHeight 960)
+                          {:width (min (- js/window.innerWidth 20) 1280)
+                           :height (min (- js/window.innerHeight 20) 960)
                            :style "border: 1px solid #000; display: block;"}]))
 
 (set! js/window.onresize
       (fn []
-        (set! (.-width canvas) (min js/window.innerWidth 1280))
-        (set! (.-height canvas) (min js/window.innerHeight 960))))
+        (set! (.-width canvas) (min (- js/window.innerWidth 20) 1280))
+        (set! (.-height canvas) (min (- js/window.innerHeight 20) 960))))
 
 (defn scale-factor []
   (let [aspect-ratio (/ (.-width canvas)
