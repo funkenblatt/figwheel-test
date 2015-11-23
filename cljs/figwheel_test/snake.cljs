@@ -341,6 +341,17 @@ we need you to infiltrate.")
 
 (def turn-map {65 :left 37 :left 68 :right 39 :right})
 
+(defn touch->turn [evt]
+  (let [touch-list (-> evt .-touches (array-seq 0))]    
+    (when (> (count touch-list) 0)
+      (let [[px py] (->> touch-list
+                         last
+                         (c/canvas-coord ctx)
+                         undo-viewport)]
+        (cond (< px -40) :left
+              (> px 40) :right
+              :else nil)))))
+
 (defn run-shit [ctx on-death on-win]
   (set! js/window.onkeydown
                 (fn [evt]
@@ -354,15 +365,12 @@ we need you to infiltrate.")
   (set! (.-ontouchstart canvas)
         (fn [evt]
           (.preventDefault evt)
-          (let [{:as head :keys [dir p1]} (last (:segments @my-snake))
-                [px py] (undo-viewport (c/canvas-coord ctx (-> evt .-touches (.item 0))))]
-            (swap! my-snake turn-snake
-                   (cond (< px -40) :left
-                         (> px 40) :right)))))
+          (let [{:as head :keys [dir p1]} (last (:segments @my-snake))]
+            (swap! my-snake turn-snake (touch->turn evt)))))
   (set! (.-ontouchend canvas)
         (fn [evt]
           (.preventDefault evt)
-          (swap! my-snake turn-snake nil)))
+          (swap! my-snake turn-snake (touch->turn evt))))
   
   ((fn loopage []
      (if (not (:stop @my-snake))
