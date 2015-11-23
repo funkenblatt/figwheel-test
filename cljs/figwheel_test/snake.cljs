@@ -119,15 +119,17 @@ as changed."
                                         (js/Math.cos th2)))}))))
     snake))
 
+(defn clamp [low x high]
+  (min (max x low) high))
+
 (defn draw-shit [ctx game-state]
   (with-viewport
     (fn []
-      (let [[x y] (seg-endpoint (last (:segments game-state)))]
-        (.translate ctx
-                    (- (max (min x (- 640 (/ (.-width canvas) 2)))
-                            (- (/ (.-width canvas) 2) 640)))
-                    (- (max (min y (- 480 (/ (.-height canvas) 2)))
-                            (- (/ (.-height canvas) 2) 480))))
+      (let [[x y] (seg-endpoint (last (:segments game-state)))
+            xbound (- 640 (/ (.-width canvas) 2))
+            ybound (- 480 (/ (.-height canvas) 2))]
+        (.translate ctx (- (clamp (- xbound) x xbound))
+                    (- (clamp (- ybound) y ybound)))
         (run! (partial draw-segment ctx)
               (concat (:walls game-state)
                       (map val (:targets game-state))
