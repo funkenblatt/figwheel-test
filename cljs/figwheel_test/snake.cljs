@@ -128,6 +128,7 @@ as changed."
       (let [[x y] (seg-endpoint (last (:segments game-state)))
             xbound (- 640 (/ (.-width canvas) 2))
             ybound (- 480 (/ (.-height canvas) 2))]
+        (set! (.-lineWidth ctx) 1.5)
         (.translate ctx (- (clamp (- xbound) x xbound))
                     (- (clamp (- ybound) y ybound)))
         (run! (partial draw-segment ctx)
