@@ -107,3 +107,10 @@
         s (-> (vdot (v- p1 p) dp) (/ (vdot dp dp)) (* -1))
         s (max 0 (min 1 s))]
     (vmag (v- (v+ p1 (vscale s dp)) p))))
+
+(defn rotate
+  "Rotate point p by angle th"
+  [p th]
+  (let [[x y] p]
+    [(- (* (js/Math.cos th) x) (* (js/Math.sin th) y))
+     (+ (* (js/Math.sin th) x) (* (js/Math.cos th) y))]))
