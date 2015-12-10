@@ -1,11 +1,26 @@
 (ns figwheel-test.canvas
   (:require-macros [figwheel-test.macros :as m])
-  (:require [clojure.string :as s]))
+  (:require [clojure.string :as s]
+            [figwheel-test.geometry :as g]))
 
 (defn lines [ctx & [[x0 y0] & _ :as points]]
   (.beginPath ctx)
   (.. ctx (moveTo x0 y0))
   (doseq [[x y] points] (.. ctx (lineTo x y))))
+
+(defn lines-relative [ctx & [[x0 y0 :as p0] & points]]
+  (.beginPath ctx)
+  (.. ctx (moveTo x0 y0))
+  (reduce
+   (fn [p pn]
+     (let [[x y :as new-p] (g/v+ p pn)]
+       (.. ctx (lineTo x y))
+       new-p))
+   p0 points))
+
+(defn stroke-lines-relative [ctx & args]
+  (apply lines-relative ctx args)
+  (.stroke ctx))
 
 (defn stroke-lines [ctx & args]
   (apply lines ctx args)
