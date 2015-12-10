@@ -63,10 +63,11 @@
   (g/vscale 0.25 (undo-viewport (c/canvas-coord com/ctx e))))
 
 (def limb-state
-  (atom {:left-arm [(/ tau -2) (/ tau -2)]
-         :right-arm [0 0]
-         :left-leg [(/ tau -3) (/ tau -3)]
-         :right-leg [(/ tau -6) (/ tau -6)]}))
+  (atom {:limbs {:left-arm [(/ tau -2) (/ tau -2)]
+                 :right-arm [0 0]
+                 :left-leg [(/ tau -3) (/ tau -3)]
+                 :right-leg [(/ tau -6) (/ tau -6)]}
+         :dirs {}}))
 
 (defn end-position [anchor l angles]
   (reduce g/v+ anchor (map (partial polar l) angles)))
