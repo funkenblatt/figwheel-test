@@ -7,18 +7,13 @@
                  [org.clojure/clojurescript "1.7.170"]
                  [org.clojure/core.rrb-vector "0.0.11"]
                  [hipo "0.4.0"]]
-  :plugins [[lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.3.7"
-             :exclusions [org.clojure/clojure
-                          org.clojure/core.async
-                          org.clojure/clojurescript
-                          org.clojure/tools.reader
-                          org.codehaus.plexus/plexus-utils]]]
+  :plugins [[lein-cljsbuild "1.1.1"]
+            [lein-figwheel "0.5.0-1"]]
 
   :profiles {:dev {:repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[weasel "0.7.0" :exclusions [org.clojure/clojurescript]]
                                   [com.cemerick/piggieback "0.2.1" :exclusions [org.clojure/clojurescript]]
-                                  [figwheel "0.3.7"
+                                  [figwheel "0.5.0-1"
                                    :exclusions
                                    [org.clojure/clojure org.clojure/clojurescript
                                     org.clojure/tools.reader org.codehaus.plexus/plexus-utils]]
@@ -32,7 +27,7 @@
                 :figwheel {:websocket-host :js-client-host}
                 :compiler {:main "figwheel-test.snake"
                            :asset-path "js"
-                           :output-to "resources/public/stuff.js"
+                           :output-to "resources/public/js/stuff.js"
                            :output-dir "resources/public/js"}}
 
                {:id "production"
