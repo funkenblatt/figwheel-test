@@ -21,17 +21,19 @@
               (finish nil))))
     (set! (.-onkeypress js/window) (fn [] (finish nil)))))
 
-(defn complete-line-draw [ctx cont draw p1]
+(defn complete-line-draw [ctx cont draw p1
+                          & {:keys [constraint]
+                             :or {constraint identity}}]
   (set! (.-onmousemove (.-canvas ctx))
         (fn [e]
           (js/window.requestAnimationFrame
            (fn []
              (c/clear ctx)
-             (draw ctx)
-             (c/stroke-lines ctx p1 (canvas-coord ctx e))))))
+             (draw ctx (constraint (canvas-coord ctx e)))
+             (c/stroke-lines ctx p1 (constraint (canvas-coord ctx e)))))))
   (m/cps-let [p2 (read-point ctx !)]
              (set! (.-onmousemove (.-canvas ctx)) nil)
-             (cont p2)))
+             (cont (constraint p2))))
 
 (defn read-polyline-draw [ctx cont draw]
   (m/cps-let [start (read-point ctx !)]
