@@ -110,3 +110,6 @@
 
 (defn center-print [s]
   (viewport-print 0 0 s :align :center))
+
+(defn modinc [x n]
+  (mod (inc x) n))
