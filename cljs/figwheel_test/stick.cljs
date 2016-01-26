@@ -27,13 +27,15 @@
                          :as limbs} :limbs
                          groin :groin
                          :as state}
-                   & {:keys [offset]}]
+                   & {:keys [offset dir]
+                      :or {dir 1}}]
   (let [torso-angle (first (:angles torso))
         arm-anchor (g/v+ groin (polar 19.5 torso-angle))]
-    (with-viewport
+    (c/with-saved-context com/ctx
       (fn []
-        (.scale com/ctx 4 4)
         (when offset (.translate com/ctx (first offset) (second offset)))
+        (.scale com/ctx 2.5 2.5)
+        (if (> dir 0) (.scale com/ctx -1 1))
         (set! (.-lineJoin ctx) "round")
         ;; Draw head
         (c/stroke-circle
@@ -47,8 +49,7 @@
            (apply c/stroke-lines-relative ctx
                   (anchor state)
                   (map (partial polar length) angles)))
-         limbs))
-      false)))
+         limbs)))))
 
 (defn ik-angles
   ([anchor l target]
@@ -85,7 +86,7 @@
     (interpolator (/ i n))))
 
 (defn evt-point [e]
-  (g/vscale 0.25 (undo-viewport (c/canvas-coord com/ctx e))))
+  (g/vscale (/ 1.0 2.5) (undo-viewport (c/canvas-coord com/ctx e))))
 
 (defn arm-anchor [{:keys [groin limbs]}]
   (g/v+ groin (polar 19.5 (get-in limbs [:torso :angles 0]))))
@@ -161,8 +162,72 @@
                                              (get dirs limb -1)))))))
                     (js/requestAnimationFrame
                      #(do
-                        (c/clear com/ctx)
-                        (draw-figure com/ctx @limb-state)))))))))
+                        (with-viewport
+                          (fn []
+                            (draw-figure com/ctx @limb-state :dir -1))
+                          true)))))))))
+
+
+(def startwad (assoc-in @limb-state [:limbs :torso :angles] [1.7209188128106587]))
+(def walk-ik-data
+  [[#js[-12 -20.785] #js[12 -20.785] [11 -15] [-11 -15]]
+   [#js[0 -20.785] #js[0 -15.785] [0 -18.6] [0 -18.6]]
+   [#js[12 -20.785] #js[-12 -20.785] [-11 -15] [11 -15]]
+   [#js[0 -15.785] #js[0 -20.785] [0 -18.6] [0 -18.6]]])
+
+(def walk-frames
+  (mapv
+   (fn [[left right left-arm right-arm]]
+     (-> startwad
+         (assoc-in [:limbs :left-leg :angles] (ik-angles [0 0] leg-length left -1))
+         (assoc-in [:limbs :right-leg :angles] (ik-angles [0 0] leg-length right -1))
+         (assoc-in [:limbs :left-arm :angles] (ik-angles [0 0] arm-length left-arm))
+         (assoc-in [:limbs :right-arm :angles] (ik-angles [0 0] arm-length right-arm))))
+   walk-ik-data))
+(def jump-walk-frames
+  (mapv
+   (comp
+    (fn [[left right left-arm right-arm]]
+      (-> (update startwad :groin g/v+ [0 -5])
+          (assoc-in [:limbs :left-leg :angles] (ik-angles [0 0] leg-length left -1))
+          (assoc-in [:limbs :right-leg :angles] (ik-angles [0 0] leg-length right -1))
+          (assoc-in [:limbs :left-arm :angles] (ik-angles [0 0] arm-length left-arm))
+          (assoc-in [:limbs :right-arm :angles] (ik-angles [0 0] arm-length right-arm))))
+    (fn [stuff]
+      (map (partial g/v+ [0 5]) stuff)))
+   walk-ik-data))
+
+(def walk-cycle (vec
+                 (interpolations (concat walk-frames [(first walk-frames)]) 12)))
+(def crouch-cycle (vec
+                   (interpolations (concat jump-walk-frames [(first jump-walk-frames)]) 12)))
+
+(defn update-walk [{:keys [limb-state phase x crouched dir]
+                      :as state}
+                     down-keys]
+    (let [new-state (cond
+                      (and (down-keys 17) (< crouched 5)) (update state :crouched inc)
+                      (and (not (down-keys 17)) (> crouched 0)) (update state :crouched dec)
+                      true state)
+          new-state (if (or (down-keys 65) (down-keys 68))
+                      (update new-state :phase com/modinc 48)
+                      (if (not (= (mod phase 24) 0))
+                        (update new-state :phase com/modinc 48)
+                        new-state))
+          new-state (if (not (identical? state new-state))
+                      (let [{:keys [phase crouched]} new-state]
+                        (assoc new-state :limb-state (interpolate
+                                                      (walk-cycle phase)
+                                                      (crouch-cycle phase)
+                                                      (/ crouched 5))))
+                      state)
+          new-state (if (and
+                         (not (every? down-keys #{65 68}))
+                         (or (and (> dir 0) (down-keys 65))
+                             (and (< dir 0) (down-keys 68))))
+                      (update new-state :dir * -1)
+                      new-state)]
+      new-state))
 
 (comment
 
@@ -174,7 +239,7 @@
     (cps-run!
      (fn [x k]
        (c/clear com/ctx)
-       (draw-figure com/ctx x :offset [@horizontal 0])
+       (draw-figure com/ctx x :offset [@horizontal 0] :dir -1)
        (swap! horizontal - velocity)
        (when (not stop)
          (js/requestAnimationFrame #(k nil))))
@@ -187,81 +252,24 @@
                 12))
      identity))
 
-
-  (def statewad
-    (atom {:limb-state (first walk-frames)
-           :phase 0
-           :crouched 0
-           :x 0}))
-
-  (defn update-walk [{:keys [limb-state phase x
-                             crouched]
-                      :as state}
-                     down-keys]
-    (let [new-state (cond 
-                      (and (down-keys 17) (< crouched 5)) (update state :crouched inc)
-                      (and (not (down-keys 17)) (> crouched 0)) (update state :crouched dec)
-                      true state)
-          new-state (if (down-keys 65)
-                      (update new-state :phase com/modinc 48)
-                      (if (not (= (mod phase 24) 0))
-                        (update new-state :phase com/modinc 48)
-                        new-state))]
-      (if (not (identical? state new-state))
-        (let [{:keys [phase crouched]} new-state]
-          (assoc new-state :limb-state (interpolate
-                                        (walk-cycle phase)
-                                        (crouch-cycle phase)
-                                        (/ crouched 5))))
-        state)))
+  {:limbs 
+   {:left-arm {:angles [2.727112540161899 2.727112540161899], :length 10}
+    :right-arm {:angles [-0.2950464590881281 1.065894037376769], :length 10}
+    :left-leg {:angles [-2.02186598278342 -2.02186598278342], :length 12, :anchor :groin}
+    :right-leg {:angles [-0.9652516631899266 -0.9652516631899266], :length 12, :anchor :groin}
+    :torso {:angles [1.2583047670603775], :anchor :groin, :length 23}}
+   :groin [0 -20], :dirs {:left-arm 1}}
 
   (m/nlet lp []
     (when (not stop)
       (swap! statewad update-walk @down-keys)
       (c/clear com/ctx)
-      (draw-figure com/ctx (:limb-state @statewad))
+      (draw-figure com/ctx (:limb-state @statewad) :dir (:dir @statewad))
       (js/window.requestAnimationFrame lp)))
 
   (set! stop true)
   
-  (:phase (update-walk @statewad #{65}))
-
-  (update @statewad :phase com/modinc 48)
-
   (c/clear com/ctx)
   (draw-figure com/ctx (:limb-state @statewad))
 
-  (def startwad (assoc-in @limb-state [:limbs :torso :angles] [1.7209188128106587]))
-  (def walk-ik-data
-    [[#js[-12 -20.785] #js[12 -20.785] [11 -15] [-11 -15]]
-     [#js[0 -20.785] #js[0 -15.785] [0 -18.6] [0 -18.6]]
-     [#js[12 -20.785] #js[-12 -20.785] [-11 -15] [11 -15]]
-     [#js[0 -15.785] #js[0 -20.785] [0 -18.6] [0 -18.6]]])
-
-  (def walk-frames
-    (mapv
-     (fn [[left right left-arm right-arm]]
-       (-> startwad
-           (assoc-in [:limbs :left-leg :angles] (ik-angles [0 0] leg-length left -1))
-           (assoc-in [:limbs :right-leg :angles] (ik-angles [0 0] leg-length right -1))
-           (assoc-in [:limbs :left-arm :angles] (ik-angles [0 0] arm-length left-arm))
-           (assoc-in [:limbs :right-arm :angles] (ik-angles [0 0] arm-length right-arm))))
-     walk-ik-data))
-
-  (def walk-cycle (vec
-                   (interpolations (concat walk-frames [(first walk-frames)]) 12)))
-  (def crouch-cycle (vec
-                     (interpolations (concat jump-walk-frames [(first jump-walk-frames)]) 12)))
-
-  (def jump-walk-frames
-    (mapv
-     (comp
-      (fn [[left right left-arm right-arm]]
-        (-> (update startwad :groin g/v+ [0 -5])
-            (assoc-in [:limbs :left-leg :angles] (ik-angles [0 0] leg-length left -1))
-            (assoc-in [:limbs :right-leg :angles] (ik-angles [0 0] leg-length right -1))
-            (assoc-in [:limbs :left-arm :angles] (ik-angles [0 0] arm-length left-arm))
-            (assoc-in [:limbs :right-arm :angles] (ik-angles [0 0] arm-length right-arm))))
-      (fn [stuff]
-        (map (partial g/v+ [0 5]) stuff)))
-     walk-ik-data)))
+  )
