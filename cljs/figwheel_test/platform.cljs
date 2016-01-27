@@ -142,75 +142,27 @@ the currently pressed keys."
 
 (def down-keys (atom #{}))
 
+(def stop false)
+
+(def worldwad (atom world))
+
+(defn run-stuff []
+  (set! js/window.onkeydown 
+        (fn [e] (swap! down-keys conj (.-which e)) (.preventDefault e)))
+  (set! js/window.onkeyup 
+        (fn [e] (swap! down-keys disj (.-which e)) (.preventDefault e)))
+
+  (set! stop false)
+  (m/nlet lp []
+    (when (not stop)
+      (draw-world @worldwad)
+      (swap! worldwad update-world @down-keys)
+      (js/window.requestAnimationFrame lp))))
+
 (comment
-  (set! js/window.onkeydown (fn [e] (swap! down-keys conj (.-which e)) (.preventDefault e)))
-  (set! js/window.onkeyup (fn [e] (swap! down-keys disj (.-which e)) (.preventDefault e)))
+  
 
   (add-watch down-keys :foo (fn [k r o n] (set! js/document.title (str n))))
-  (def stop false)
+  
   (set! stop true)
-
-  (def worldwad (atom world))
-  (reset! worldwad world)
-  (do
-    (set! stop false)
-    (m/nlet lp []
-      (when (not stop)
-        (draw-world @worldwad)
-        (swap! worldwad update-world @down-keys)
-        (js/window.requestAnimationFrame lp))))
-
-  (cps-run!
-   (fn [x k]
-     (draw-world (update-in @worldwad [:player :x] g/v- [(* 2.5 x) 0]))
-     (js/window.requestAnimationFrame k))
-   (range 60))
-
-  (:x (:player @worldwad))
-
-  [#js [-0.001 -293.6045555555556] #js [0 383.6666666666667]]
-
-  [#js [-0.001 -299.999] #js [0 0]]
-  (let [{:keys [player walls]} @worldwad
-        {:keys [x v]} player]
-    (update-world @worldwad #{}))
-
-  (defn group-by-transducer 
-    ([key-fn]
-     (fn [reduce-fn]
-       (fn [acc x]
-         (let [k (key-fn x)]
-           (if (contains? acc k)
-             (update acc k reduce-fn x)
-             (assoc acc k x))))))
-
-    ([key-fn dflt]
-     (fn [reduce-fn]
-       (fn [acc x]
-         (let [k (key-fn x)]
-           (if (contains? acc k)
-             (update acc k reduce-fn x)
-             (assoc acc k (reduce-fn dflt x))))))))
-
-  (defn union-type [types]
-    (as-> (distinct types) ts
-      (if (> (count ts) 1)
-        (cons '+ ts)
-        (first ts))))
-
-  (union-type '(a b a a a))
-
-  (defn summarize-type [o]
-    (cond
-      (seq? o) (list 'Seq (union-type (map summarize-type o)))
-      (vector? o) (list 'Vec (union-type (map summarize-type o)))
-      (map? o) (list 'Map 
-                     (union-type (map summarize-type (keys o)))
-                     (union-type (map summarize-type (vals o))))
-      (integer? o) 'integer
-      (number? o) 'number
-      (keyword? o) 'keyword
-      true (type o)))
-  (defn win? [b]
-    (some (fn [x] (-> x set vec #{[:x] [:o]} first))
-          (concat b (apply map list b) [(map nth b [0 1 2]) (map nth b [2 1 0])]))))
+  (reset! worldwad world))
