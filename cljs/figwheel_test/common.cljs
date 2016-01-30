@@ -113,3 +113,6 @@
 
 (defn modinc [x n]
   (mod (inc x) n))
+
+(defn clamp [low x high]
+  (min (max x low) high))

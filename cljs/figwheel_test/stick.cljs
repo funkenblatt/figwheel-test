@@ -51,12 +51,16 @@
                   (map (partial polar length) angles)))
          limbs)))))
 
+(defn zero-tau "Shift th between 0 and tau"
+  [th]
+  (if (< th 0) (+ tau th) th))
+
 (defn ik-angles
   ([anchor l target]
    (ik-angles anchor l target 1))
   ([anchor l target dir]
    (let [dx (g/v- target anchor)
-         th (g/vec-angle dx)
+         th (zero-tau (g/vec-angle dx))
          r (g/vmag dx)
          dth (if (> r (* 2 l))
                0
@@ -68,7 +72,9 @@
     (reduce-kv
      (fn [s k {v :angles}]
        (update-in s [:limbs k :angles] (fn [v1] (mapv interp v1 v))))
-     (update state1 :groin (fn [v1] (mapv interp v1 (:groin state2))))
+     (if (:groin state2)
+       (update state1 :groin (fn [v1] (mapv interp v1 (:groin state2))))
+       state1)
      (:limbs state2))))
 
 (defn cps-run! [f s k]
@@ -175,26 +181,24 @@
    [#js[12 -20.785] #js[-12 -20.785] [-11 -15] [11 -15]]
    [#js[0 -15.785] #js[0 -20.785] [0 -18.6] [0 -18.6]]])
 
-(def walk-frames
-  (mapv
-   (fn [[left right left-arm right-arm]]
-     (-> startwad
-         (assoc-in [:limbs :left-leg :angles] (ik-angles [0 0] leg-length left -1))
-         (assoc-in [:limbs :right-leg :angles] (ik-angles [0 0] leg-length right -1))
-         (assoc-in [:limbs :left-arm :angles] (ik-angles [0 0] arm-length left-arm))
-         (assoc-in [:limbs :right-arm :angles] (ik-angles [0 0] arm-length right-arm))))
-   walk-ik-data))
+(defn apply-ik-data [start limb-targets]
+  (let [limbs [:left-leg :right-leg :left-arm :right-arm]
+        dirs [-1 -1 1 1]
+        lengths [leg-length leg-length arm-length arm-length]]
+    (reduce
+     (fn [a x]
+       (assoc-in 
+        a [:limbs (limbs x) :angles] 
+        (ik-angles [0 0] (lengths x) (limb-targets x) (dirs x))))
+     start (range 4))))
+
+(def walk-frames (mapv (partial apply-ik-data startwad) walk-ik-data))
+
 (def jump-walk-frames
   (mapv
    (comp
-    (fn [[left right left-arm right-arm]]
-      (-> (update startwad :groin g/v+ [0 -5])
-          (assoc-in [:limbs :left-leg :angles] (ik-angles [0 0] leg-length left -1))
-          (assoc-in [:limbs :right-leg :angles] (ik-angles [0 0] leg-length right -1))
-          (assoc-in [:limbs :left-arm :angles] (ik-angles [0 0] arm-length left-arm))
-          (assoc-in [:limbs :right-arm :angles] (ik-angles [0 0] arm-length right-arm))))
-    (fn [stuff]
-      (map (partial g/v+ [0 5]) stuff)))
+    (fn [x] (apply-ik-data (update startwad :groin g/v+ [0 -5]) x))
+    (fn [stuff] (mapv (partial g/v+ [0 5]) stuff)))
    walk-ik-data))
 
 (def walk-cycle (vec
@@ -202,13 +206,32 @@
 (def crouch-cycle (vec
                    (interpolations (concat jump-walk-frames [(first jump-walk-frames)]) 12)))
 
-(defn update-walk [{:keys [limb-state phase x crouched dir]
-                      :as state}
-                     down-keys]
+(def throw-frames
+  (vec
+   (interpolations
+    [{:limbs {:right-arm {:angles [-0.24369859989530596 1.3768507741389193]}
+              :torso {:angles [1.4004898626762722]}}}
+     {:limbs {:right-arm {:angles [1.5152774027238718 -0.5471416942642442]}, 
+              :torso {:angles [1.648561266397629]}}}
+     {:limbs {:right-arm {:angles [3.8501291734333662 3.8501291734333662]}, 
+              :torso {:angles [1.8971551435016594]}}}]
+    7)))
+
+(def throwing-pose (first throw-frames))
+
+(defn update-walk [{:keys [limb-state phase x crouched dir throw?]
+                    :as state}
+                   down-keys]
     (let [new-state (cond
                       (and (down-keys 17) (< crouched 5)) (update state :crouched inc)
                       (and (not (down-keys 17)) (> crouched 0)) (update state :crouched dec)
                       true state)
+          new-state (cond 
+                      (and (not throw?) (down-keys :mouse)) (assoc new-state :throw? 0)
+                      (and (= throw? 0) (not (down-keys :mouse))) (update new-state :throw? inc)
+                      (and throw? (> throw? 0) (< throw? 14)) (update new-state :throw? inc)
+                      (= throw? 14) (assoc new-state :throw? false)
+                      true new-state)
           new-state (if (or (down-keys 65) (down-keys 68))
                       (update new-state :phase com/modinc 48)
                       (if (not (= (mod phase 24) 0))
@@ -228,6 +251,24 @@
                       (update new-state :dir * -1)
                       new-state)]
       new-state))
+
+(defn throw-origin [{:keys [limb-state dir] :as walk-state} x]
+  (let [[dx dy :as a] (arm-anchor limb-state)
+        anchor (g/vscale 2.5 (if (> dir 0) [(- dx) dy] a))]
+    (g/v+ (g/v+ x [0 101.9625]) anchor)))
+
+(defn show-throw [{:keys [walk-state x] :as player} pointer]
+  (if (:throw? walk-state)
+    (let [[dx dy :as v] (g/v- pointer (throw-origin walk-state x))
+          throw-dir (g/vec-angle [(* -1 (js/Math.abs dx)) dy])]
+      (-> player
+          (update-in [:walk-state :limb-state]
+                     (partial merge-with (partial merge-with merge))
+                     (throw-frames (min (:throw? walk-state) 13)))
+          (assoc-in [:walk-state :limb-state :limbs :left-arm :angles]
+                    [throw-dir throw-dir])
+          (update-in [:walk-state :dir] #(if (< (* dx %) 0) (- %) %))))
+    player))
 
 (comment
 
