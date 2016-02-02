@@ -8,8 +8,9 @@
 
 (defn read-point [ctx cont]
   (let [can (.-canvas ctx)
+        prev-mouseup (.-onmouseup can)
         finish (fn [val]
-                 (set! (.-onmouseup can) nil)
+                 (set! (.-onmouseup can) prev-mouseup)
                  (set! (.-onkeypress js/window) nil)
                  (set! (.-oncontextmenu js/window) nil)
                  (cont val))]
@@ -29,13 +30,13 @@
           (js/window.requestAnimationFrame
            (fn []
              (c/clear ctx)
-             (draw ctx (constraint (canvas-coord ctx e)))
-             (c/stroke-lines ctx p1 (constraint (canvas-coord ctx e)))))))
+             (draw ctx (constraint (canvas-coord ctx e) p1))
+             (c/stroke-lines ctx p1 (constraint (canvas-coord ctx e) p1))))))
   (m/cps-let [p2 (read-point ctx !)]
              (set! (.-onmousemove (.-canvas ctx)) nil)
-             (cont (constraint p2))))
+             (cont (and p2 (constraint p2 p1)))))
 
-(defn read-polyline-draw [ctx cont draw]
+(defn read-polyline-draw [ctx cont draw & kw-args]
   (m/cps-let [start (read-point ctx !)]
     (if start
       (m/nlet lp [points [start]]
@@ -43,7 +44,8 @@
                       (draw ctx)
                       (when (> (count points) 1)
                         (apply c/stroke-lines ctx points)))]
-          (m/cps-let [p (complete-line-draw ctx ! draw* (last points))]
+          (m/cps-let [p (apply complete-line-draw ctx ! draw*
+                               (last points) kw-args)]
             (if p
               (lp (conj points p))
               (cont points)))))

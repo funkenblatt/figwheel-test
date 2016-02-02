@@ -24,13 +24,17 @@
                                   :x 0
                                   :dir -1
                                   :throw? false}}
-            :walls [[[-640 -300] [-640 100]]
-                    [[-640 -300] [0 -300]]
-                    [[0 -300] [0 0]]
-                    [[0 0] [640 0]]
-                    [[-200 -250] [-100 -250]]
-                    [[-350 -200] [-250 -200]]
-                    [[-500 -150] [-400 -150]]]
+            :walls [[[-640 -420] [-640 480]]
+                    [[-640 -420] [0 -420]]
+                    [[0 -420] [0 -120]]
+                    [[0 -120] [640 -120]]
+                    [[640 -120] [640 480]]
+                    [[-423 -373] [-382 -373]]
+                    [[-366 -335] [-314 -335]]
+                    [[-305 -297] [-262 -297]]
+                    [[-252 -252] [-207 -252]]
+                    [[-183 -211] [-132 -211]]
+                    [[-115 -172] [-6 -172]]]
             :balls {}})
 
 (defn draw-world [{:as world
@@ -41,7 +45,7 @@
         com/ctx
         (fn []
           (set! (.-lineWidth com/ctx) 2)
-          (run! (fn [points] (apply c/stroke-lines com/ctx points)) walls)
+          (run! (fn [[p1 p2]] (c/stroke-line com/ctx p1 p2)) walls)
           (run! (fn [[k {:keys [x]}]] (c/stroke-circle com/ctx x 2)) balls)))
       (draw-figure com/ctx (get-in player [:walk-state :limb-state])
                    :offset (g/v+ (:x player) [0 101.96249999999999])
@@ -117,7 +121,7 @@ the currently pressed keys."
   [(transduce (map (some-fn {65 -150 68 150} (constantly 0))) + keys)
    (nth v 1)])
 
-(def omega (js/Math.sqrt 0.4))
+(def omega (js/Math.sqrt 0.3))
 
 (def counter (atom 0))
 
@@ -139,7 +143,7 @@ the currently pressed keys."
                      1000))}))
 
 (defn coriolis-force [x v]
-  (g/v+ (g/vscale (* omega omega) (g/v- x [0 2000]))
+  (g/v+ (g/vscale (* omega omega) (g/v- x [0 2500]))
         (let [[vx vy] v]
           [(* 2 vy omega) (* -2 vx omega)])))
 
@@ -173,7 +177,7 @@ the currently pressed keys."
         [new-x new-v] (do-wall-collisions player-x new-v walls 0
                                           (fn [p] 
                                             [(g/v+ p [-30 0])
-                                             (g/v+ p [30 30])]))]
+                                             (g/v+ p [30 138])]))]
     (-> (assoc-in world [:player :v] new-v)
         (assoc-in [:player :x] new-x)
         (update-in [:player :walk-state] update-walk keys)

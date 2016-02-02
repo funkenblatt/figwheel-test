@@ -26,6 +26,12 @@
   (apply lines ctx args)
   (.stroke ctx))
 
+(defn stroke-line [ctx [x0 y0] [x1 y1]]
+  (.beginPath ctx)
+  (.. ctx (moveTo x0 y0))
+  (.. ctx (lineTo x1 y1))
+  (.stroke ctx))
+
 (defn stroke-circle [ctx [cx cy] r]
   (.beginPath ctx)
   (.arc ctx cx cy r 0 (* 2 js/Math.PI))
