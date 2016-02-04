@@ -8,7 +8,6 @@
                                           on-space undo-viewport
                                           mobile?]
              :as com]
-            [clojure.core.rrb-vector :as rrb]
             [hipo.core :as hipo]
             clojure.string
             [figwheel-test.stick :refer [update-walk walk-frames draw-figure
@@ -37,10 +36,19 @@
                     [[-115 -172] [-6 -172]]]
             :balls {}})
 
+(defn camera-offset [{:keys [player] :as world}]
+  (let [[x y] (:x player)
+        mx (/ (.-width com/canvas) 2)
+        my (/ (.-height com/canvas) 2)]
+    [(com/clamp (- mx 640) (- x) (- 640 mx))
+     (com/clamp (- my 480) (- y) (- 480 my))]))
+
 (defn draw-world [{:as world
                    :keys [walls player balls]}]
   (with-viewport
     (fn []
+      (let [[dx dy] (camera-offset world)]
+        (.translate com/ctx dx dy))
       (c/with-saved-context
         com/ctx
         (fn []
@@ -194,6 +202,18 @@ the currently pressed keys."
 (def worldwad (atom world))
 
 (defn run-stuff []
+  (com/init-elements)
+  (com/size-canvas)
+  (set! js/window.onresize com/size-canvas)
+
+  (.insertBefore
+   js/document.body
+   (hipo/create
+    [:div#help
+     "Use W, S, A, and D to navigate.  Press Space to jump.  Click and hold the mouse to prepare
+a throw.  The distance between the character and your cursor determines how hard the throw will be."])
+   com/canvas)
+
   (set! js/window.onkeydown 
         (fn [e] (swap! down-keys conj (.-which e)) (.preventDefault e)))
   (set! js/window.onkeyup 
@@ -201,7 +221,9 @@ the currently pressed keys."
   (set! (.-onmousedown com/canvas) 
         (fn [e] 
           (swap! down-keys conj :mouse)
-          (let [f #(->> % (c/canvas-coord com/ctx) undo-viewport (reset! mouse-loc))]
+          (let [f #(->> % (c/canvas-coord com/ctx) undo-viewport
+                        (g/v+ (g/vscale -1 (camera-offset @worldwad)))
+                        (reset! mouse-loc))]
             (f e)
             (set! js/window.onmousemove f))))
   (set! (.-onmouseup js/window) 
