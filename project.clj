@@ -42,4 +42,10 @@
                 :compiler {:optimizations :advanced
                            :main "figwheel-test.turret"
                            :output-to "target/turret.js"
-                           }}]})
+                           }}
+
+               {:id "coriolis"
+                :source-paths ["cljs/"]
+                :compiler {:optimizations :advanced
+                           :main "figwheel-test.platform"
+                           :output-to "target/coriolis.js"}}]})

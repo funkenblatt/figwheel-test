@@ -1,8 +1,7 @@
 (ns figwheel-test.coriolis
   (:require [figwheel-test.geometry :as g]
             [figwheel-test.canvas :as c]
-            [figwheel-test.common :refer [with-viewport ctx tau] :as com]
-            [figwheel-test.platform :as platform])
+            [figwheel-test.common :refer [with-viewport ctx tau] :as com])
   (:require-macros [figwheel-test.macros :as m]))
 
 (def dt (/ 1.0 60))
@@ -85,7 +84,7 @@
   (set! (.-width com/canvas) (min (* js/window.innerWidth 0.8) 1280))
   (draw-state init-state))
 
-(defn ^:export init-everything []
+(defn init-everything []
   (com/init-elements)
   (size-canvas)
   (set! js/window.onresize size-canvas)
@@ -105,24 +104,29 @@ The black axes and line show the motion from a stationary observer's perspective
 As you will see, what appears to be a straight-line motion in a stationary frame
 turns into a curved motion in the rotating frame, which ends up being forced
 to the right initially and then to the left as it \"falls.\""]
-     [:p "Press the 'Start' button to begin the animation.  
+     [:p "Press the 'Show' button to begin the animation.  
 While the animation is playing, you can click on it to switch
 between a rotating and a stationary frame of reference.  Once you're
-done here, you can click on the \"Play\" button to show a more interactive
-simulation of what life in a rotating reference frame is like."]
-     [:button#start "Start"]
-     [:button#play "Play"]])
+done here, you can click on the \"Back\" button to return to the interactive
+simulation."]
+     [:button#start "Show"]
+     [:button#play "Back"]])
    com/canvas)
+
+  (try (js/mixpanel.track "start coriolis")
+       (catch js/Error e))
 
   (let [button (js/document.getElementById "start")
         play (js/document.getElementById "play")]
     (set! (.-onclick button)
           (fn lp []
             (set! (.-onclick button) nil)
+            (set! (.-onclick play) nil)
             (show-stuff init-state 
-                        (fn [x] (set! (.-onclick button) lp)))))
+                        (fn [x] (set! (.-onclick button) lp)
+                          (set! (.-onclick play) figwheel-test.platform/run-stuff)))))
 
-    (set! (.-onclick play) platform/run-stuff)))
+    (set! (.-onclick play) figwheel-test.platform/run-stuff)))
 
 (comment
   (init-everything)

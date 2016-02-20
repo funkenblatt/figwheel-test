@@ -8,6 +8,7 @@
                                           on-space undo-viewport
                                           mobile?]
              :as com]
+            [figwheel-test.coriolis :as coriolis]
             [hipo.core :as hipo]
             clojure.string
             [figwheel-test.stick :refer [update-walk walk-frames draw-figure
@@ -34,6 +35,7 @@
                     [[-252 -252] [-207 -252]]
                     [[-183 -211] [-132 -211]]
                     [[-115 -172] [-6 -172]]]
+            :theta 0
             :balls {}})
 
 (defn camera-offset [{:keys [player] :as world}]
@@ -48,7 +50,19 @@
   (with-viewport
     (fn []
       (let [[dx dy] (camera-offset world)]
-        (.translate com/ctx dx dy))
+        (.translate com/ctx dx dy)
+        (c/with-saved-context
+          com/ctx
+          (fn []
+            (set! (.-lineWidth com/ctx) 2)
+            (set! (.-strokeStyle com/ctx) "#888")
+            (.translate com/ctx 0 2500)
+            (.rotate com/ctx (- (:theta world)))
+            (c/stroke-line com/ctx [-4000 0] [4000 0])
+            (c/stroke-line com/ctx [-4000 -4000] [4000 4000])
+            (c/stroke-line com/ctx [-4000 4000] [4000 -4000])
+            (c/stroke-line com/ctx [0 -4000] [0 4000]))))
+      
       (c/with-saved-context
         com/ctx
         (fn []
@@ -190,6 +204,7 @@ the currently pressed keys."
         (assoc-in [:player :x] new-x)
         (update-in [:player :walk-state] update-walk keys)
         (update :player show-throw pointer)
+        (update :theta + (* omega dt))
         (update-all :balls update-ball)
         (maybe-add-ball pointer))))
 
@@ -201,7 +216,11 @@ the currently pressed keys."
 
 (def worldwad (atom world))
 
-(defn run-stuff []
+(defn show-coriolis []
+  (set! stop true)
+  (coriolis/init-everything))
+
+(defn ^:export run-stuff []
   (com/init-elements)
   (com/size-canvas)
   (set! js/window.onresize com/size-canvas)
@@ -210,9 +229,12 @@ the currently pressed keys."
    js/document.body
    (hipo/create
     [:div#help
-     "Use W, S, A, and D to navigate.  Press Space to jump.  Click and hold the mouse to prepare
-a throw.  The distance between the character and your cursor determines how hard the throw will be."])
+     [:p "Use W and D to navigate.  Press Space to jump.  Click and hold the mouse to prepare
+a throw.  The distance between the character and your cursor determines how hard the throw will be."]
+     [:p "Wondering why the physics are so weird? " [:button#show-coriolis "Click Here"]]])
    com/canvas)
+
+  (set! (.-onclick (js/document.getElementById "show-coriolis")) show-coriolis)
 
   (set! js/window.onkeydown 
         (fn [e] (swap! down-keys conj (.-which e)) (.preventDefault e)))
@@ -236,7 +258,11 @@ a throw.  The distance between the character and your cursor determines how hard
     (when (not stop)
       (draw-world @worldwad)
       (swap! worldwad update-world @down-keys @mouse-loc)
-      (js/window.requestAnimationFrame lp))))
+      (js/window.requestAnimationFrame lp)))
+
+  (try
+    (js/mixpanel.track "start platformer")
+    (catch js/Error e)))
 
 (comment
   (run-stuff)
