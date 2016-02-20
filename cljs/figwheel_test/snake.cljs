@@ -390,7 +390,7 @@ we need you to infiltrate.")
                    (js/window.requestAnimationFrame loopage))))
        (unset-keys)))))
 
-(defn ^:export init-everything []
+(defn init-everything []
   (init-elements)
   (set-start! ctx
               "

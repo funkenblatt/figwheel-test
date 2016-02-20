@@ -1,7 +1,8 @@
 (ns figwheel-test.turret
   (:require [figwheel-test.common
              :refer [tau canvas ctx fooprint init-elements scale-factor
-                     with-viewport on-space]]
+                     with-viewport on-space]
+             :as com]
             [figwheel-test.geometry :as g]
             [figwheel-test.canvas :as c])
   (:require-macros [figwheel-test.macros :as m]))
@@ -365,7 +366,9 @@ segment going from p1 to p2.  Returns nil if no impact."
 
 (defn draw-state [state]
   (with-viewport
-    #(do (turret-draw (:player state) ctx)
+    #(do (when (not (alive? state))
+           (com/center-print "Press Space to Continue"))
+         (turret-draw (:player state) ctx)
          (run! (fn [[n x]] (bullet-draw x ctx))
                (:bullets state))
          (run! (fn [[n x]] (enemy-draw x ctx)) (:enemies state))
@@ -414,6 +417,8 @@ segment going from p1 to p2.  Returns nil if no impact."
 
 (defn init-everything []
   (init-elements)
+  (draw-state @state)
+  (com/center-print "Aim with the mouse, click to fire\nPress Space To Begin")
   (on-space run-loop))
 
 (comment
