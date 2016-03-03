@@ -62,26 +62,27 @@
 (defn alive? [state]
   (> (:health (:player state)) 0))
 
-(def name-gen
+(def gen-id
   (let [n (atom 0)]
     (fn [] (swap! n (fn [x] (mod (+ x 1) 100000))))))
 
 (defn spawn-bullet [state th pos]
   (let [dir (g/unit-vector th)]
     (update state :bullets assoc
-            (name-gen)
+            (gen-id)
             {:x (g/v+ pos (g/vscale 50 dir))
              :v (g/vscale 15 dir)})))
 
 (defn spawn-enemy [state pos v]
   (update state :enemies assoc
-          (name-gen)
+          (gen-id)
           {:x pos :v v :w 0 :th 0
            :health 3}))
 
-(defn turret-update [state path dir trigger]
+(defn turret-update [state path pointer trigger]
   (let [{:keys [th w cooldown k b pos temperature barrel-change ammo health]
-         :as self} (get-in state path) 
+         :as self} (get-in state path)
+        dir (g/v- pointer pos)
         er [(js/Math.cos th) (js/Math.sin th)]
         delta (js/Math.atan2
                (g/vcross er dir)
@@ -101,7 +102,7 @@
                       (assoc :ammo (if firing (dec ammo) ammo))
                       (assoc :w (if (or (< new-th 0) (> new-th (/ tau 2)))
                                   0 new-w))
-                      (assoc :th (min (max new-th 0) (/ tau 2))))))))
+                      (assoc :th (com/clamp 0 new-th (/ tau 2))))))))
 
 (defn turret-draw [{:keys [th cooldown pos health]} ctx]
   (c/with-saved-context
@@ -186,7 +187,7 @@
            angle (- (* (rand) (/ (* 2 tau) 3))
                     (/ tau 12))]
        (update state :chunks conj
-               [(name-gen)
+               [(gen-id)
                 {:x pos :v #js[(* mag (js/Math.cos angle))
                              (* mag (js/Math.sin angle))]
                  :draw (rand-nth chunk-types)}])))
@@ -393,8 +394,7 @@ segment going from p1 to p2.  Returns nil if no impact."
         (fn [evt]
           (reset! dir (-> [(.-pageX evt) (.-pageY evt)]
                           (g/v- (c/elem-offset canvas))
-                          screen->world
-                          (g/v- (get-in @state [:player :pos]))))))
+                          screen->world))))
   
   (on-space
    (fn []
